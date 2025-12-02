@@ -32,10 +32,6 @@ func (this Table) get_col_index(col_name string) int {
 	return -1
 }
 
-func possibly_turn_from_string_into_bool(v any) any {
-	return v
-}
-
 func get_Runtime_value_relative_location(select_ *ast.Select, col ast.Col) byte_code.Runtime_value_relative_location {
 	var col_name string
 	switch col := col.(type) {
