@@ -6,10 +6,10 @@ Project Description
 
 ### Todo
 
-- [ ] index/channel on table  
-- [ ] get updates from supa base or other update streamer  
-- [ ] stream to client  
 - [ ] table column validation  
+- [ ] stream to client  
+- [ ] get updates from supa base or other update streamer  
+- [ ] index/channel on table  
 
 ### In Progress
 
