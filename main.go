@@ -25,17 +25,17 @@ func (this Table) get_col_index(col_name string) int {
 	return -1
 }
 
-type Runtime_value_location struct {
+type Runtime_value_relative_location struct {
 	Amount_to_follow int
 	Col_index        int
 }
 
-func (this Runtime_value_location) add_one() Runtime_value_location {
+func (this Runtime_value_relative_location) add_one() Runtime_value_relative_location {
 	this.Amount_to_follow++
 	return this
 }
 
-func (this *Select) get_parent_ptr_follow_amount_and_col_index(col Col) Runtime_value_location {
+func (this *Select) get_Runtime_value_relative_location(col Col) Runtime_value_relative_location {
 	var col_name string
 	switch col := col.(type) {
 	case plain_col_name:
@@ -57,7 +57,7 @@ func (this *Select) get_parent_ptr_follow_amount_and_col_index(col Col) Runtime_
 		table := tables[this.Table]
 		index := table.get_col_index(col_name)
 		if index != -1 {
-			return Runtime_value_location{Amount_to_follow: 0, Col_index: index}
+			return Runtime_value_relative_location{Amount_to_follow: 0, Col_index: index}
 		}
 	}
 
@@ -65,7 +65,7 @@ Try_parent:
 	if this.Parent_select.IsNone() {
 		panic("col " + col_name + " not found in select " + this.Table)
 	}
-	return this.Parent_select.Unwrap().get_parent_ptr_follow_amount_and_col_index(col).add_one()
+	return this.Parent_select.Unwrap().get_Runtime_value_relative_location(col).add_one()
 }
 
 func (this *Select) parent_children() {
@@ -85,21 +85,20 @@ func (this *Select) parent_children() {
 
 func (this *Select) c() {
 
-	fmt.Println("this.Table = ", this.Table)
-	wheres_byte_code := []Runtime_value_location{}
+	wheres_byte_code := []Runtime_value_relative_location{}
 	for _, where := range this.Wheres {
-		wheres_byte_code = append(wheres_byte_code, this.get_parent_ptr_follow_amount_and_col_index(where.Col))
+		wheres_byte_code = append(wheres_byte_code, this.get_Runtime_value_relative_location(where.Col))
 	}
-	selected_values_byte_code := []Runtime_value_location{}
+	selected_values_byte_code := []Runtime_value_relative_location{}
 
 	for _, col := range this.Selected_values {
 		switch col := col.(type) {
 		case Select:
 			col.c()
 		case plain_col_name:
-			selected_values_byte_code = append(selected_values_byte_code, this.get_parent_ptr_follow_amount_and_col_index(col))
+			selected_values_byte_code = append(selected_values_byte_code, this.get_Runtime_value_relative_location(col))
 		case table_access:
-			selected_values_byte_code = append(selected_values_byte_code, this.get_parent_ptr_follow_amount_and_col_index(col))
+			selected_values_byte_code = append(selected_values_byte_code, this.get_Runtime_value_relative_location(col))
 		}
 	}
 	display.Display(wheres_byte_code)
@@ -109,16 +108,26 @@ func (this *Select) c() {
 var tables map[string]Table = map[string]Table{
 	"person": Table{
 		Name:    "person",
-		Columns: []string{"name", "email", "age"},
+		Columns: []string{"name", "email", "age", "state"},
 	},
 	"todo": Table{
 		Name:    "todo",
-		Columns: []string{"title", "description", "done"},
+		Columns: []string{"title", "description", "done", "person_id"},
 	},
 }
 
 func main() {
-	src := `SELECT person.name, (SELECT person.name, (SELECT person.name FROM person WHERE todo.title > 18) FROM todo WHERE todo.done == true) FROM person WHERE person.age > 18`
+	c := R_Table{}
+	f := Filter{predicate: func(row RowType) bool {
+		return row[0] == "shmulik"
+	}}
+	link(&c, &f)
+	link(&f, &Printer{})
+	c.add(RowType{"shmulik", "email@gmail.com", "25", "state"})
+	c.add(RowType{"shmulik", "email@gmail.com", "25", "state"})
+}
+func main1() {
+	src := `SELECT person.name, (SELECT person.state, (SELECT person.name FROM person WHERE todo.title > 18) FROM todo WHERE todo.done == true) FROM person WHERE person.age > 18`
 	l := NewLexer(src)
 
 	parser := parser{tokens: l.Tokenize()}
