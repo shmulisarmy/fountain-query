@@ -151,19 +151,27 @@ Try_parent:
 	return location_info.Add_one(), type_
 }
 
-func make_select_schema(this *ast.Select) RowSchema {
+func make_row_schema_from_select(this *ast.Select) RowSchema {
 	schema := []ColInfo{}
 	for _, col := range this.Selected_values {
-		switch col := col.(type) {
+		switch col_value := col.Value_to_select.(type) {
 		case ast.Select:
-			NestedSelects = append(NestedSelects, make_select_schema(&col))
-			schema = append(schema, ColInfo{Name: "", Type: DataType(len(NestedSelects) - 1)})
+			NestedSelects = append(NestedSelects, make_row_schema_from_select(&col_value))
+			schema = append(schema, ColInfo{Name: col.Alias, Type: DataType(len(NestedSelects) - 1)})
 		case ast.Plain_col_name:
-			_, type_ := get_Runtime_value_relative_location_and_type(this, col)
-			schema = append(schema, ColInfo{Name: string(col), Type: type_})
+			_, type_ := get_Runtime_value_relative_location_and_type(this, col_value)
+			schema_col_name := string(col_value)
+			if col.Alias != "" {
+				schema_col_name = col.Alias
+			}
+			schema = append(schema, ColInfo{Name: schema_col_name, Type: type_})
 		case ast.Table_access:
-			_, type_ := get_Runtime_value_relative_location_and_type(this, col)
-			schema = append(schema, ColInfo{Name: col.Col_name, Type: type_})
+			_, type_ := get_Runtime_value_relative_location_and_type(this, col_value)
+			schema_col_name := col_value.Col_name
+			if col.Alias != "" {
+				schema_col_name = col.Alias
+			}
+			schema = append(schema, ColInfo{Name: schema_col_name, Type: type_})
 		//////////
 		case int:
 			schema = append(schema, ColInfo{Name: "", Type: Int})
@@ -199,7 +207,7 @@ func make_select_byte_code(select_ *ast.Select) byte_code.Select {
 	}
 
 	for _, col := range select_.Selected_values {
-		switch col := col.(type) {
+		switch col := col.Value_to_select.(type) {
 		case ast.Select:
 			// panic("not supported nested yet, coming soon...")
 			s.Selected_values_byte_code = append(s.Selected_values_byte_code, make_select_byte_code(&col))
@@ -301,8 +309,8 @@ func select_byte_code_to_observable(select_byte_code byte_code.Select, parent_co
 
 func main() {
 	src := `SELECT person.name, person.email, id, (
-		SELECT todo.title, person.id FROM todo WHERE todo.is_public == true
-		) FROM person WHERE person.age > 3 `
+		SELECT todo.title as epic_title, person.id FROM todo WHERE todo.is_public == true
+		) AS todos FROM person WHERE person.age > 3 `
 
 	l := NewLexer(src)
 	parser := parser{tokens: l.Tokenize()}
@@ -316,7 +324,7 @@ func main() {
 	display.DisplayStruct(select_byte_code)
 
 	select_byte_code_to_observable(select_byte_code, option.None[*state_full_byte_code.Row_context]()).To_display()
-	println(make_select_schema(&select_).to_string(0))
+	println(make_row_schema_from_select(&select_).to_string(0))
 
 	tables["todo"].insert(rowType.RowType{"clean", "make sure its clean", true, 1, false})
 	tables["todo"].insert(rowType.RowType{"eat food", "make sure its clean", false, 1, false})

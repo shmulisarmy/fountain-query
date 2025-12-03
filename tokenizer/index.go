@@ -16,6 +16,7 @@ const (
 	AND    TokenType = "AND"
 	TRUE   TokenType = "TRUE"
 	FALSE  TokenType = "FALSE"
+	AS     TokenType = "AS"
 
 	// Special
 	ILLEGAL TokenType = "ILLEGAL"
@@ -104,11 +105,17 @@ func (l *Lexer) peekChar() rune {
 
 var keywords = map[string]TokenType{
 	"SELECT": SELECT,
+	"select": SELECT,
 	"FROM":   FROM,
+	"from":   FROM,
 	"WHERE":  WHERE,
+	"where":  WHERE,
 	"AND":    AND,
+	"and":    AND,
 	"true":   TRUE,
 	"false":  FALSE,
+	"AS":     AS,
+	"as":     AS,
 }
 
 func lookupIdent(ident string) TokenType {

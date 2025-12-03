@@ -97,10 +97,17 @@ func (p *parser) parse_Select() ast.Select {
 	p.expect(SELECT)
 	for !p.optionallyExpect(FROM) {
 		if p.optionallyExpect(LPAREN) {
-			s.Selected_values = append(s.Selected_values, p.parse_Select())
+			select_ := p.parse_Select()
 			p.expect(RPAREN)
+			p.expect(AS)
+			s.Selected_values = append(s.Selected_values, ast.Selected_value{Value_to_select: select_, Alias: p.expectIdent()})
 		} else {
-			s.Selected_values = append(s.Selected_values, p.parse_col_or_expr_lit())
+			Value_to_select := p.parse_col_or_expr_lit()
+			var alias string
+			if p.optionallyExpect(AS) {
+				alias = p.expectIdent()
+			}
+			s.Selected_values = append(s.Selected_values, ast.Selected_value{Value_to_select: Value_to_select, Alias: alias})
 		}
 		if !p.optionallyExpect(COMMA) {
 			p.expect(FROM)

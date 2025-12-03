@@ -28,10 +28,15 @@ type Where struct {
 	Value2   any
 }
 
+type Selected_value struct {
+	Value_to_select any
+	Alias           string
+}
+
 type Select struct {
 	Table           string
 	Wheres          []Where
-	Selected_values []any
+	Selected_values []Selected_value
 	// compile time (post parsing stage) inserted
 	Parent_select Option[*Select]
 }
@@ -40,11 +45,11 @@ func (this *Select) Recursively_link_children() {
 	print("sup")
 
 	for i := range this.Selected_values {
-		switch col := this.Selected_values[i].(type) {
+		switch col := this.Selected_values[i].Value_to_select.(type) {
 		case Select:
 			col.Parent_select = unwrap.Some(this)
 			col.Recursively_link_children()
-			this.Selected_values[i] = col
+			this.Selected_values[i] = Selected_value{Value_to_select: col, Alias: this.Selected_values[i].Alias}
 		case *Select:
 			panic("unexpected pointer")
 		}
