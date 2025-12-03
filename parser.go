@@ -95,20 +95,20 @@ func (p *parser) parseCol() ast.Col {
 func (p *parser) parse_Select() ast.Select {
 	s := ast.Select{}
 	p.expect(SELECT)
+	var Value_to_select any
 	for !p.optionallyExpect(FROM) {
+		var alias string
 		if p.optionallyExpect(LPAREN) {
-			select_ := p.parse_Select()
+			Value_to_select = p.parse_Select()
 			p.expect(RPAREN)
-			p.expect(AS)
-			s.Selected_values = append(s.Selected_values, ast.Selected_value{Value_to_select: select_, Alias: p.expectIdent()})
+			alias = Value_to_select.(ast.Select).Table
 		} else {
-			Value_to_select := p.parse_col_or_expr_lit()
-			var alias string
-			if p.optionallyExpect(AS) {
-				alias = p.expectIdent()
-			}
-			s.Selected_values = append(s.Selected_values, ast.Selected_value{Value_to_select: Value_to_select, Alias: alias})
+			Value_to_select = p.parse_col_or_expr_lit()
 		}
+		if p.optionallyExpect(AS) {
+			alias = p.expectIdent()
+		}
+		s.Selected_values = append(s.Selected_values, ast.Selected_value{Value_to_select: Value_to_select, Alias: alias})
 		if !p.optionallyExpect(COMMA) {
 			p.expect(FROM)
 			break

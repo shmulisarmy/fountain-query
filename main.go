@@ -310,7 +310,9 @@ func select_byte_code_to_observable(select_byte_code byte_code.Select, parent_co
 func main() {
 	src := `SELECT person.name, person.email, id, (
 		SELECT todo.title as epic_title, person.id FROM todo WHERE todo.is_public == true
-		) AS todos FROM person WHERE person.age > 3 `
+		), (
+		SELECT todo.title as epic_title FROM todo WHERE todo.is_public == true
+		) as todo2 FROM person WHERE person.age > 3 `
 
 	l := NewLexer(src)
 	parser := parser{tokens: l.Tokenize()}
