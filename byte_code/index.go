@@ -1,6 +1,7 @@
 package byte_code
 
 type Expression any
+type StringOrNumber any
 
 type Where struct {
 	Value_1      Expression
@@ -8,8 +9,14 @@ type Where struct {
 	Value_2      Expression
 }
 
+type ColValuePair struct {
+	Col   string
+	Value StringOrNumber
+}
+
 type Select struct {
 	Table_name                string
+	Col_and_value_to_index_by ColValuePair //could be empty, in which case we will take from the table directly
 	Wheres_byte_code          []Where
 	Selected_values_byte_code []Expression
 }

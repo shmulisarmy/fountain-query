@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	. "sql-compiler/rowType"
+	"sql-compiler/utils"
 )
 
 type R_Table struct {
@@ -35,11 +36,10 @@ func (this *R_Table) Add(row RowType) {
 	this.is_deleted = append(this.is_deleted, false)
 	///
 	for i := range this.Indexes {
-		if _, ok := this.Indexes[i].Channels[row[this.Indexes[i].Col_indexing_on].(string)]; !ok {
-			this.Indexes[i].Channels[row[this.Indexes[i].Col_indexing_on].(string)] = NewChannel(this)
-		}
-		this.Indexes[i].Channels[row[this.Indexes[i].Col_indexing_on].(string)].row_indexes = append(this.Indexes[i].Channels[row[this.Indexes[i].Col_indexing_on].(string)].row_indexes, len(this.rows)-1)
-		this.Indexes[i].Channels[row[this.Indexes[i].Col_indexing_on].(string)].Publish_Add(row)
+		channel_value := utils.String_or_num_to_string(row[this.Indexes[i].Col_indexing_on])
+		this.Indexes[i].Channels[channel_value] = NewChannel(this)
+		this.Indexes[i].Channels[channel_value].row_indexes = append(this.Indexes[i].Channels[channel_value].row_indexes, len(this.rows)-1)
+		this.Indexes[i].Channels[channel_value].Publish_Add(row)
 	}
 	///
 	this.Publish_Add(row)
