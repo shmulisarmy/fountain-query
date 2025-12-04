@@ -14,6 +14,7 @@ import (
 	. "sql-compiler/tokenizer"
 	option "sql-compiler/unwrap"
 	. "sql-compiler/utils"
+	"strconv"
 	"strings"
 )
 
@@ -137,6 +138,8 @@ func validate_col_types(this *Table, row *rowType.RowType) {
 			if _, ok := (*row)[i].(bool); !ok {
 				panic(fmt.Sprintf("col %s of table %s's type is bool and you passed in a %T", col.Name, this.Name, (*row)[i]))
 			}
+		default:
+			panic("unhandled")
 		}
 	}
 }
@@ -257,6 +260,10 @@ func make_select_byte_code(select_ *ast.Select) byte_code.Select {
 			s.Selected_values_byte_code = append(s.Selected_values_byte_code, get_Runtime_value_relative_location_if_Col(select_, col))
 		case ast.Table_access:
 			s.Selected_values_byte_code = append(s.Selected_values_byte_code, get_Runtime_value_relative_location_if_Col(select_, col))
+		case int, string, bool:
+			s.Selected_values_byte_code = append(s.Selected_values_byte_code, col)
+		default:
+			panic("unhandled")
 		}
 	}
 	s.Col_and_value_to_index_by = tables.Get(select_.Table).choose_col_to_index(select_)
@@ -348,7 +355,19 @@ func select_byte_code_to_observable(select_byte_code byte_code.Select, parent_co
 	if select_byte_code.Col_and_value_to_index_by.Col != "" {
 		//ints are cast to strings when placed and queried from indexes
 		channel_value := select_byte_code.Col_and_value_to_index_by.Value
-		current_observable = tables.Get(select_byte_code.Table_name).Index_on(select_byte_code.Col_and_value_to_index_by.Col).Channels[String_or_num_to_string(channel_value)]
+		switch channel_value := channel_value.(type) {
+		case byte_code.Runtime_value_relative_location:
+			tracked_channel_value := parent_context.Unwrap().Get_value(channel_value)
+			current_observable = tables.Get(select_byte_code.Table_name).Index_on(select_byte_code.Col_and_value_to_index_by.Col).Get_or_create_channel_not_with_row(String_or_num_to_string(tracked_channel_value))
+		case string:
+			current_observable = tables.Get(select_byte_code.Table_name).Index_on(select_byte_code.Col_and_value_to_index_by.Col).Get_or_create_channel_not_with_row(channel_value)
+		case int:
+			int_str := strconv.Itoa(channel_value)
+			current_observable = tables.Get(select_byte_code.Table_name).Index_on(select_byte_code.Col_and_value_to_index_by.Col).Get_or_create_channel_not_with_row(int_str)
+		default:
+			//bools are not supported for indexing indexes
+			panic(fmt.Sprintf("%T %s", channel_value, channel_value))
+		}
 	} else {
 		current_observable = &tables.Get(select_byte_code.Table_name).R_Table
 	}
@@ -368,8 +387,8 @@ func test_compilation() {
 	todos_table := tables.Get("todo")
 	todos_table.Index_on("person_id")
 
-	src := `SELECT 1 as random_number, person.name, person.email, id, (
-		SELECT todo.title as epic_title, person.id FROM todo WHERE todo.person_id == 1
+	src := `SELECT person.name, "69" as noice, person.email, id, (
+		SELECT todo.title as epic_title, person.id FROM todo WHERE todo.person_id == person.id
 		), (
 		SELECT todo.title as epic_title FROM todo WHERE todo.is_public == true
 		) as todo2 FROM person WHERE person.age > 3 `
@@ -388,9 +407,9 @@ func test_compilation() {
 	select_byte_code_to_observable(select_byte_code, option.None[*state_full_byte_code.Row_context]()).To_display()
 	println(make_row_schema_from_select(&select_).to_string(0))
 
-	todos_table.insert(rowType.RowType{"clean", "make sure its clean", true, 1, false})
 	todos_table.insert(rowType.RowType{"eat food", "make sure its clean", false, 1, false})
 	todos_table.insert(rowType.RowType{"play music", "make sure its clean", false, 1, true})
+	todos_table.insert(rowType.RowType{"clean", "make sure its clean", true, 1, false})
 	todos_table.insert(rowType.RowType{"do art", "make sure its clean", false, 2, true})
 	tables.Get("person").insert(rowType.RowType{"shmuli", "email@gmail.com", 25, "state", 1})
 	tables.Get("person").insert(rowType.RowType{"the-doo-er", "email@gmail.com", 20, "state", 2})
@@ -439,20 +458,15 @@ func (table *Table) choose_col_to_index(select_ *ast.Select) byte_code.ColValueP
 		if where.Operator != EQ { //until we start using ordered maps then you can index on < and >
 			continue
 		}
-		switch where.Value2.(type) {
-		case ast.Plain_col_name, ast.Table_access:
-			goto Try_to_choose_next_col //as of now the value to index by must be known at compile time
 
-		}
 		if _, is_of_type_bool := where.Value2.(bool); is_of_type_bool {
 			continue
 		}
 		if table.get_index(col) != nil {
 			best_index.channel_count = len(table.get_index(col).Channels)
 			best_index.col_name = string(col)
-			best_index.value = where.Value2
+			best_index.value = get_Runtime_value_relative_location_if_Col(select_, where.Value2)
 		}
-	Try_to_choose_next_col:
 	}
 	display.DisplayStruct(best_index)
 	return byte_code.ColValuePair{

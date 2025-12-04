@@ -27,8 +27,7 @@ func (this *Printer) on_update(old_row RowType, new_row RowType) {
 }
 
 func (this *Printer) run() {
-	this.subscribed_to.Pull(func(row RowType) bool {
+	for row := range this.subscribed_to.Pull {
 		fmt.Println("row ", row)
-		return true
-	})
+	}
 }

@@ -24,9 +24,12 @@ func New_R_Table() R_Table {
 }
 
 func (this *R_Table) Pull(yield func(RowType) bool) {
+	println("pulling from a table")
 	for i, row := range this.rows {
 		if !this.is_deleted[i] {
-			yield(row)
+			if !yield(row) {
+				return
+			}
 		}
 	}
 }
@@ -37,7 +40,9 @@ func (this *R_Table) Add(row RowType) {
 	///
 	for i := range this.Indexes {
 		channel_value := utils.String_or_num_to_string(row[this.Indexes[i].Col_indexing_on])
-		this.Indexes[i].Channels[channel_value] = NewChannel(this)
+		if _, ok := this.Indexes[i].Channels[channel_value]; !ok {
+			this.Indexes[i].Channels[channel_value] = NewChannel(this)
+		}
 		this.Indexes[i].Channels[channel_value].row_indexes = append(this.Indexes[i].Channels[channel_value].row_indexes, len(this.rows)-1)
 		this.Indexes[i].Channels[channel_value].Publish_Add(row)
 	}
@@ -58,6 +63,12 @@ func (this *Index) Get_or_create_channel(row RowType) *Channel {
 		this.Channels[row[this.Col_indexing_on].(string)] = NewChannel(this.table)
 	}
 	return this.Channels[row[this.Col_indexing_on].(string)]
+}
+func (this *Index) Get_or_create_channel_not_with_row(value string) *Channel {
+	if _, ok := this.Channels[value]; !ok {
+		this.Channels[value] = NewChannel(this.table)
+	}
+	return this.Channels[value]
 }
 
 func NewChannel(table *R_Table) *Channel {
@@ -84,7 +95,10 @@ type Channel struct {
 }
 
 func (this *Channel) Pull(yield func(RowType) bool) {
+	println("pulling from a channel")
 	for _, row_index := range this.row_indexes {
-		yield(this.table.rows[row_index])
+		if !yield(this.table.rows[row_index]) {
+			return
+		}
 	}
 }

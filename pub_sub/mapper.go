@@ -16,10 +16,12 @@ func (this *Mapper) set_subscribed_to(observable ObservableI) {
 }
 
 func (this *Mapper) Pull(yield func(RowType) bool) {
-	this.subscribed_to.Pull(func(row RowType) bool {
-		yield(this.transformer(row))
-		return true
-	})
+	println("pulling from a table")
+	for row := range this.subscribed_to.Pull {
+		if !yield(this.transformer(row)) {
+			return
+		}
+	}
 }
 func (this *Mapper) on_Add(row RowType) {
 	this.Publish_Add(this.transformer(row))
