@@ -10,7 +10,7 @@ type Sum[T any] struct {
 
 func (receiver *Sum[T]) On_add(item T) {
 	receiver.sum += reflect.ValueOf(item).FieldByName(receiver.FieldToSum).Int()
-	receiver.Broadcast(int64(receiver.sum))
+	receiver.Broadcast(receiver.sum)
 }
 
 func (receiver *Sum[T]) On_remove(item T) {
