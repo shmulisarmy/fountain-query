@@ -16,6 +16,7 @@ func (receiver *Count[T]) On_remove(item T) {
 }
 
 func (receiver *Count[T]) On_update(oldItem T, newItem T) {
-	receiver.count++
+	// Count remains unchanged when updating an item
+	receiver.Broadcast(int64(receiver.count))
 	receiver.Broadcast(int64(receiver.count))
 }
