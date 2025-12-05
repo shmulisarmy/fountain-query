@@ -326,7 +326,7 @@ func test_compilation() {
 	todos_table := tables.Get("todo")
 	todos_table.Index_on("person_id")
 
-	src := `SELECT person.name, person.email, person.id, (
+	src := `SELECT person.email, person.name , person.id, (
 		SELECT todo.title as epic_title, person.name, person.id FROM todo WHERE todo.person_id == person.id
 		), (
 		SELECT todo.title as epic_title FROM todo WHERE todo.is_public == true
