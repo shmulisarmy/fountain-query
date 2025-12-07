@@ -267,6 +267,30 @@ var compare_methods = map[string]func(value1 any, value2 any) bool{
 			panic(fmt.Sprintf("types %T and %T do not match", value1, value2))
 		}
 	},
+	">=": func(value1 any, value2 any) bool {
+		switch value1 := value1.(type) {
+		case string:
+			return value1 >= value2.(string)
+		case int:
+			return value1 >= value2.(int)
+		case bool:
+			return value1 == value2.(bool)
+		default:
+			panic(fmt.Sprintf("types %T and %T do not match", value1, value2))
+		}
+	},
+	"<=": func(value1 any, value2 any) bool {
+		switch value1 := value1.(type) {
+		case string:
+			return value1 <= value2.(string)
+		case int:
+			return value1 <= value2.(int)
+		case bool:
+			return value1 == value2.(bool)
+		default:
+			panic(fmt.Sprintf("types %T and %T do not match", value1, value2))
+		}
+	},
 }
 
 func filter(row_context state_full_byte_code.Row_context, wheres []byte_code.Where) bool {
@@ -414,7 +438,7 @@ func main() {
 
 	src := `SELECT person.name, person.email, person.id, (
 		SELECT todo.title as epic_title, person.name as author, person.id FROM todo WHERE todo.person_id == person.id
-		) as todo FROM person WHERE person.age > 3 `
+		) as todo FROM person WHERE person.age >= 3 `
 
 	l := NewLexer(src)
 	parser := parser{tokens: l.Tokenize()}

@@ -37,7 +37,9 @@ const (
 	SLASH    TokenType = "/"
 
 	LT TokenType = "<"
+	LE TokenType = "<="
 	GT TokenType = ">"
+	GE TokenType = ">="
 	EQ TokenType = "=="
 
 	// Delimiters
@@ -174,9 +176,19 @@ func (l *Lexer) NextToken() Token {
 	case '!':
 		tok = newToken(BANG, l.ch, l.position)
 	case '<':
-		tok = newToken(LT, l.ch, l.position)
+		if l.peekChar() == '=' {
+			l.readChar()
+			tok = newToken(LE, l.ch, l.position)
+		} else {
+			tok = newToken(LT, l.ch, l.position)
+		}
 	case '>':
-		tok = newToken(GT, l.ch, l.position)
+		if l.peekChar() == '=' {
+			l.readChar()
+			tok = newToken(GE, l.ch, l.position)
+		} else {
+			tok = newToken(GT, l.ch, l.position)
+		}
 	case '=':
 		if l.peekChar() == '=' {
 			l.readChar()
