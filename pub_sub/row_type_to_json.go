@@ -2,28 +2,25 @@ package pubsub
 
 import (
 	"fmt"
+	"sql-compiler/assert"
 	. "sql-compiler/rowType"
+	"strings"
 )
 
 func RowTypeToJson(row *RowType, row_schema RowSchema) string {
 	res := "{"
 	for i, col := range *row {
-		res += "\\\"" + row_schema[i].Name + "\\\":"
+		res += "\"" + row_schema[i].Name + "\":"
 		switch row_schema[i].Type {
 		case String:
-			res += fmt.Sprintf("\\\"%s\\\"", col.(string))
+			res += fmt.Sprintf("\"%s\"", col.(string))
 		case Int:
 			res += fmt.Sprintf("%d", col.(int))
 		case Bool:
 			res += fmt.Sprintf("%t", col.(bool))
 		default:
-			res += "["
-			for row := range col.(ObservableI).Pull {
-				childs_row_schema := NestedSelectsRowSchema[row_schema[i].Type]
-				res += RowTypeToJson(&row, childs_row_schema) + ","
-			}
-			res = res[:len(res)-1]
-			res += "]"
+			childs_row_schema := NestedSelectsRowSchema[row_schema[i].Type]
+			res += observerToJson(col, childs_row_schema)
 		}
 		if i != len(*row)-1 {
 			res += ","
@@ -31,4 +28,21 @@ func RowTypeToJson(row *RowType, row_schema RowSchema) string {
 	}
 	res += "}"
 	return res
+}
+
+func observerToJson(col Actually_Col, row_schema RowSchema) string {
+	res := "{"
+	has_at_least_one := false
+	for row := range col.(ObservableI).Pull {
+		primary_key := row[0].(string)
+		res += "\"" + primary_key + "\":"
+		res += RowTypeToJson(&row, row_schema) + ","
+		has_at_least_one = true
+	}
+	if !has_at_least_one {
+		return "{}"
+	}
+	assert.Assert(res[len(res)-1] == ',')
+	res = strings.TrimSuffix(res, ",")
+	return res + "}"
 }

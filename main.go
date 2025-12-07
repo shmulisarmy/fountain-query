@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"sql-compiler/assert"
 	"sql-compiler/ast"
@@ -13,14 +14,22 @@ import (
 	"sql-compiler/state_full_byte_code"
 	. "sql-compiler/tokenizer"
 	option "sql-compiler/unwrap"
+	"sql-compiler/utils"
 	. "sql-compiler/utils"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 type Table struct {
 	Name    string
 	Columns []rowType.ColInfo
 	R_Table pubsub.R_Table
+}
+
+func (this *Table) Next_row_id() int {
+	return len(this.R_Table.Rows)
 }
 
 func (this *Table) hasCol(col_name string) bool {
@@ -258,6 +267,30 @@ var compare_methods = map[string]func(value1 any, value2 any) bool{
 			panic(fmt.Sprintf("types %T and %T do not match", value1, value2))
 		}
 	},
+	">=": func(value1 any, value2 any) bool {
+		switch value1 := value1.(type) {
+		case string:
+			return value1 >= value2.(string)
+		case int:
+			return value1 >= value2.(int)
+		case bool:
+			return value1 == value2.(bool)
+		default:
+			panic(fmt.Sprintf("types %T and %T do not match", value1, value2))
+		}
+	},
+	"<=": func(value1 any, value2 any) bool {
+		switch value1 := value1.(type) {
+		case string:
+			return value1 <= value2.(string)
+		case int:
+			return value1 <= value2.(int)
+		case bool:
+			return value1 == value2.(bool)
+		default:
+			panic(fmt.Sprintf("types %T and %T do not match", value1, value2))
+		}
+	},
 }
 
 func filter(row_context state_full_byte_code.Row_context, wheres []byte_code.Where) bool {
@@ -319,46 +352,6 @@ func select_byte_code_to_observable(select_byte_code byte_code.Select, parent_co
 
 }
 
-func main() {
-	test_compilation()
-}
-func test_compilation() {
-	tables.Get("person").Index_on("age")
-	todos_table := tables.Get("todo")
-	todos_table.Index_on("person_id")
-
-	src := `SELECT person.email, person.name, person.id, (
-		SELECT todo.title as epic_title, person.name as author, person.id FROM todo WHERE todo.person_id == person.id
-		), (
-		SELECT todo.title as epic_title FROM todo WHERE todo.is_public == true
-		) as todo2 FROM person WHERE person.age > 3 `
-
-	l := NewLexer(src)
-	parser := parser{tokens: l.Tokenize()}
-	for _, t := range parser.tokens {
-		fmt.Printf("%-8s %q @%d\n", t.Type, t.Literal, t.Pos)
-	}
-	select_ := parser.parse_Select()
-	select_.Recursively_link_children()
-	Recursively_set_selects_row_schema(&select_)
-	display.DisplayStruct(select_)
-	select_byte_code := make_select_byte_code(&select_)
-	display.DisplayStruct(select_byte_code)
-
-	select_byte_code_to_observable(select_byte_code, option.None[*state_full_byte_code.Row_context](), select_.Row_schema).To_display(option.Some(select_.Row_schema))
-	println(select_.Row_schema.To_string(0))
-
-	todos_table.insert(rowType.RowType{"eat food", "make sure its clean", false, 1, false})
-	todos_table.insert(rowType.RowType{"play music", "make sure its clean", false, 1, true})
-	todos_table.insert(rowType.RowType{"clean", "make sure its clean", true, 1, false})
-	todos_table.insert(rowType.RowType{"do art", "make sure its clean", false, 2, true})
-	tables.Get("person").insert(rowType.RowType{"shmuli", "email@gmail.com", 25, "state", 1})
-	tables.Get("person").insert(rowType.RowType{"the-doo-er", "email@gmail.com", 20, "state", 2})
-
-	os.Exit(0)
-
-}
-
 func (table *Table) choose_col_to_index(select_ *ast.Select) byte_code.ColValuePair {
 	type IndexSelectionInfo struct {
 		channel_count int
@@ -414,4 +407,102 @@ func (table *Table) choose_col_to_index(select_ *ast.Select) byte_code.ColValueP
 		Col:   best_index.col_name,
 		Value: best_index.value,
 	}
+}
+
+var todos_table *Table
+
+func init() {
+	todos_table = tables.Get("todo")
+}
+
+func obsToClientDataSync(obs pubsub.ObservableI, ws *websocket.Conn) {
+	eventEmitterTree := eventEmitterTree{
+		on_message: func(message SyncMessage) {
+			ws.WriteJSON(message)
+		},
+	}
+	switch obs := obs.(type) {
+	case *pubsub.Mapper:
+		eventEmitterTree.syncFromObservable(obs, "")
+	default:
+		panic("should be mapper")
+	}
+}
+func main() {
+
+	r := gin.Default()
+
+	tables.Get("person").Index_on("age")
+
+	todos_table.Index_on("person_id")
+
+	src := `SELECT person.name, person.email, person.id, (
+		SELECT todo.title as epic_title, person.name as author, person.id FROM todo WHERE todo.person_id == person.id
+		) as todo FROM person WHERE person.age >= 3 `
+
+	l := NewLexer(src)
+	parser := parser{tokens: l.Tokenize()}
+	for _, t := range parser.tokens {
+		fmt.Printf("%-8s %q @%d\n", t.Type, t.Literal, t.Pos)
+	}
+	select_ := parser.parse_Select()
+	select_.Recursively_link_children()
+	Recursively_set_selects_row_schema(&select_)
+	display.DisplayStruct(select_)
+	select_byte_code := make_select_byte_code(&select_)
+	display.DisplayStruct(select_byte_code)
+
+	obs := select_byte_code_to_observable(select_byte_code, option.None[*state_full_byte_code.Row_context](), select_.Row_schema)
+	obs.To_display(option.Some(select_.Row_schema))
+
+	r.GET("/stream-data", func(ctx *gin.Context) {
+		ws, err := (&websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool { return true },
+		}).Upgrade(ctx.Writer, ctx.Request, nil)
+		if err != nil {
+			panic(err)
+		}
+		obsToClientDataSync(obs, ws)
+	})
+
+	r.GET("add-person", func(ctx *gin.Context) {
+		tables.Get("person").insert(rowType.RowType{ctx.Query("name"), ctx.Query("email"), 25, "state", tables.Get("person").Next_row_id()})
+	})
+	r.GET("add-todo", func(ctx *gin.Context) {
+		person_id, err := strconv.Atoi(ctx.Query("person_id"))
+		if err != nil {
+			panic(err)
+		}
+
+		tables.Get("todo").insert(rowType.RowType{ctx.Query("title"), ctx.Query("description"), false, person_id, true})
+	})
+	eventEmitterTree := eventEmitterTree{
+		on_message: func(message SyncMessage) {
+			display.DisplayStruct(message)
+		},
+	}
+	switch obs := obs.(type) {
+	case *pubsub.Mapper:
+		eventEmitterTree.syncFromObservable(obs, "")
+	default:
+		panic("should be mapper")
+	}
+	r.GET("add-sample-data", func(ctx *gin.Context) {
+		add_sample_data()
+	})
+	fmt.Printf("type %s=%s\n", utils.Capitalize(select_.Table), select_.Row_schema.To_string(0))
+	r.Run(":8080")
+
+	os.Exit(0)
+
+}
+
+func add_sample_data() {
+
+	tables.Get("person").insert(rowType.RowType{"shmuli", "email@gmail.com", 25, "state", tables.Get("person").Next_row_id()})
+	tables.Get("person").insert(rowType.RowType{"the-doo-er", "email@gmail.com", 20, "state", tables.Get("person").Next_row_id()})
+	todos_table.insert(rowType.RowType{"eat food", "make sure its clean", false, 1, false})
+	todos_table.insert(rowType.RowType{"play music", "make sure its clean", false, 1, true})
+	todos_table.insert(rowType.RowType{"clean", "make sure its clean", true, 1, false})
+	todos_table.insert(rowType.RowType{"do art", "make sure its clean", false, 2, true})
 }

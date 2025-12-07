@@ -1,6 +1,7 @@
 package rowType
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -36,7 +37,7 @@ func (r RowSchema) To_string(depth int) string {
 	for _, col := range r {
 		b.WriteString(childIndent)
 		b.WriteString(col.Name)
-		b.WriteByte(' ')
+		b.WriteByte(':')
 		b.WriteString(col.Type.To_string(depth + 1))
 		b.WriteByte('\n')
 	}
@@ -52,11 +53,11 @@ func (this DataType) To_string(depth int) string {
 	case String:
 		return "string"
 	case Int:
-		return "int"
+		return "number"
 	case Bool:
-		return "bool"
+		return "boolean"
 	default:
-		return NestedSelectsRowSchema[int(this)].To_string(depth + 1)
+		return fmt.Sprintf(`{[key: string]: %s}`, NestedSelectsRowSchema[int(this)].To_string(depth+1))
 	}
 }
 

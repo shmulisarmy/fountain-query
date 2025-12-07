@@ -32,7 +32,7 @@ func (this *Observable) Publish_Publish(old_row rowType.RowType, new_row rowType
 	}
 }
 
-func link(observable ObservableI, subscriber Subscriber) {
+func Link(observable ObservableI, subscriber Subscriber) {
 	observable.Add_sub(subscriber)
 	subscriber.set_subscribed_to(observable)
 }

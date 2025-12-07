@@ -71,7 +71,7 @@ func (p *parser) parse_col_or_expr_lit() any {
 func (p *parser) parse_simple_expr() ast.Where {
 	Value1 := p.parse_col_or_expr_lit()
 	operator := p.tokens[p.pos].Type
-	if operator != LT && operator != GT && operator != EQ {
+	if operator != LT && operator != GT && operator != EQ && operator != LE && operator != GE {
 		panic("expected ASSIGN or LT or GT or LE or GE instead of " + string(operator))
 	}
 	p.pos++
