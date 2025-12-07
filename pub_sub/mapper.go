@@ -2,7 +2,6 @@ package pubsub
 
 import (
 	"fmt"
-	"sql-compiler/debugutil"
 	"sql-compiler/rowType"
 	"sql-compiler/unwrap"
 )
@@ -38,7 +37,6 @@ func (this *Mapper) on_update(old_row rowType.RowType, new_row rowType.RowType) 
 }
 
 func (this *Mapper) String() string {
-	fmt.Println("this.RowSchema", this.RowSchema, "[", debugutil.Location(), "]")
 	res := "["
 	for row := range this.Pull {
 		if this.RowSchema.IsSome() {

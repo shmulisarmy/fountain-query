@@ -7,7 +7,7 @@ import (
 
 type R_Table struct {
 	Observable
-	rows       []rowType.RowType
+	Rows       []rowType.RowType
 	is_deleted []bool //use index to find out if the row at that index is deleted
 	Indexes    []Index
 }
@@ -17,14 +17,14 @@ func New_R_Table() R_Table {
 		Observable: Observable{
 			Subscribers: []Subscriber{},
 		},
-		rows:       []rowType.RowType{},
+		Rows:       []rowType.RowType{},
 		is_deleted: []bool{},
 		Indexes:    []Index{},
 	}
 }
 
 func (this *R_Table) Pull(yield func(rowType.RowType) bool) {
-	for i, row := range this.rows {
+	for i, row := range this.Rows {
 		if !this.is_deleted[i] {
 			if !yield(row) {
 				return
@@ -34,7 +34,7 @@ func (this *R_Table) Pull(yield func(rowType.RowType) bool) {
 }
 
 func (this *R_Table) Add(row rowType.RowType) {
-	this.rows = append(this.rows, row)
+	this.Rows = append(this.Rows, row)
 	this.is_deleted = append(this.is_deleted, false)
 	///
 	for i := range this.Indexes {
@@ -42,7 +42,7 @@ func (this *R_Table) Add(row rowType.RowType) {
 		if _, ok := this.Indexes[i].Channels[channel_value]; !ok {
 			this.Indexes[i].Channels[channel_value] = NewChannel(this)
 		}
-		this.Indexes[i].Channels[channel_value].row_indexes = append(this.Indexes[i].Channels[channel_value].row_indexes, len(this.rows)-1)
+		this.Indexes[i].Channels[channel_value].row_indexes = append(this.Indexes[i].Channels[channel_value].row_indexes, len(this.Rows)-1)
 		this.Indexes[i].Channels[channel_value].Publish_Add(row)
 	}
 	///
@@ -96,7 +96,7 @@ type Channel struct {
 
 func (this *Channel) Pull(yield func(rowType.RowType) bool) {
 	for _, row_index := range this.row_indexes {
-		if !yield(this.table.rows[row_index]) {
+		if !yield(this.table.Rows[row_index]) {
 			return
 		}
 	}
