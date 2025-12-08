@@ -440,20 +440,7 @@ func main() {
 		SELECT todo.title as epic_title, person.name as author, person.id FROM todo WHERE todo.person_id == person.id
 		) as todo FROM person WHERE person.age >= 3 `
 
-	l := NewLexer(src)
-	parser := parser{tokens: l.Tokenize()}
-	for _, t := range parser.tokens {
-		fmt.Printf("%-8s %q @%d\n", t.Type, t.Literal, t.Pos)
-	}
-	select_ := parser.parse_Select()
-	select_.Recursively_link_children()
-	Recursively_set_selects_row_schema(&select_)
-	display.DisplayStruct(select_)
-	select_byte_code := make_select_byte_code(&select_)
-	display.DisplayStruct(select_byte_code)
-
-	obs := select_byte_code_to_observable(select_byte_code, option.None[*state_full_byte_code.Row_context](), select_.Row_schema)
-	obs.To_display(option.Some(select_.Row_schema))
+	obs := query_to_observer(src)
 
 	r.GET("/stream-data", func(ctx *gin.Context) {
 		ws, err := (&websocket.Upgrader{
@@ -490,11 +477,30 @@ func main() {
 	r.GET("add-sample-data", func(ctx *gin.Context) {
 		add_sample_data()
 	})
-	fmt.Printf("type %s=%s\n", utils.Capitalize(select_.Table), select_.Row_schema.To_string(0))
 	r.Run(":8080")
 
 	os.Exit(0)
 
+}
+
+func query_to_observer(src string) pubsub.ObservableI {
+	l := NewLexer(src)
+	parser := parser{tokens: l.Tokenize()}
+	for _, t := range parser.tokens {
+		fmt.Printf("%-8s %q @%d\n", t.Type, t.Literal, t.Pos)
+	}
+	select_ := parser.parse_Select()
+	select_.Recursively_link_children()
+	Recursively_set_selects_row_schema(&select_)
+	display.DisplayStruct(select_)
+	select_byte_code := make_select_byte_code(&select_)
+	display.DisplayStruct(select_byte_code)
+
+	obs := select_byte_code_to_observable(select_byte_code, option.None[*state_full_byte_code.Row_context](), select_.Row_schema)
+	obs.To_display(option.Some(select_.Row_schema))
+	fmt.Printf("type %s=%s\n", utils.Capitalize(select_.Table), select_.Row_schema.To_string(0))
+
+	return obs
 }
 
 func add_sample_data() {
