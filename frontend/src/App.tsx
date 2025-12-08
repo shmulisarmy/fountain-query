@@ -1,14 +1,13 @@
 import { createSignal, type Component } from 'solid-js';
 import { live_db } from './live_db';
-import { assert } from 'console';
-import { deepObjectCompare } from './object_compare';
+import { run_tests } from './integration_tests';
 
 
 
 
 
 
-type Person={
+export type Person={
   name:string
   email:string
   id:number
@@ -19,7 +18,7 @@ type Person={
     }}
 }
 
-const backend_base_url = "localhost:8080"
+export const backend_base_url = "localhost:8080"
 
 type Todo = Person['todo'][0]
 
@@ -56,38 +55,22 @@ export function Person_c({props}: {props:Person}){
 
 
 
-async function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+export function TestSVG(){
+  return (
+    <svg viewBox="0 0 24 24" fill="none" width={20} height={20} xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g opacity="0.5"> <path d="M20 17.0002C21.1046 17.0002 22 16.0674 22 14.9168C22 14.1969 21.217 13.2361 20.6309 12.6176C20.2839 12.2515 19.7161 12.2515 19.3691 12.6176C18.783 13.2361 18 14.1969 18 14.9168C18 16.0674 18.8954 17.0002 20 17.0002Z" fill="#1C274C"></path> <path d="M16.278 10.5677L17.7828 7.97036L9.37268 3.14355L2.65093 14.7458C1.31093 17.0587 2.10615 20.0163 4.42709 21.3517C6.74803 22.687 9.7158 21.8946 11.0558 19.5816L12.1751 17.6497L16.278 10.5677Z" fill="#1C274C"></path> </g> <path d="M9.2939 1.35449C8.93733 1.14371 8.47739 1.26188 8.2666 1.61845C8.05581 1.97502 8.17399 2.43495 8.53056 2.64574L9.36645 3.13989L9.37231 3.14332L17.7824 7.97013L18.6261 8.45434C18.9853 8.66053 19.4437 8.53644 19.6499 8.17719C19.8561 7.81794 19.732 7.35957 19.3727 7.15338L10.1256 1.84619L9.2939 1.35449Z" fill="#1C274C"></path> <path d="M12.9271 16.3515L12.9253 16.3505L10.3126 14.8472C9.9536 14.6407 9.49509 14.7643 9.28852 15.1233C9.08195 15.4823 9.20555 15.9408 9.56457 16.1474L12.1752 17.6495L12.9271 16.3515Z" fill="#1C274C"></path> <path d="M14.5647 13.525L14.5629 13.5239L10.3599 11.1057C10.0009 10.8992 9.54239 11.0227 9.33582 11.3818C9.12925 11.7408 9.25284 12.1993 9.61187 12.4059L13.8128 14.8229L14.5647 13.525Z" fill="#1C274C"></path> <path d="M16.2763 10.5665L13.7183 9.09468C13.3592 8.88811 12.9007 9.0117 12.6941 9.37073C12.4876 9.72976 12.6112 10.1883 12.9702 10.3948L15.5262 11.8654L16.2763 10.5665Z" fill="#1C274C"></path> </g></svg>
+  )
 }
 
-function run_tests(){
- //integration tests
-    // The whole idea of this project is that the data is the same, regardless of the order
-    // in which things were updated or data was received in. Therefore, we check that here
-    // by having two different clients that are supposed to represent the same data. 
-    // although the first source is created (and starts receiving data before updates are triggered, it should have be the same as the second one
-  const client_data_reflection_1: {[key: string]: Person} = live_db(`ws://${backend_base_url}/stream-data`);
-  fetch(`http://${backend_base_url}/add-person?name=donkey`).then(async  function(){
-    const client_data_reflection_2: {[key: string]: Person} = live_db(`ws://${backend_base_url}/stream-data`);
-    await sleep(200);
-    const url = `https://json-diff-pro-copy-56b52272.base44.app/?actual=${encodeURIComponent(JSON.stringify(client_data_reflection_1))}&expected=${encodeURIComponent(JSON.stringify(client_data_reflection_2))}`
-    // `https://compare-production-1494.up.railway.app/compare?expected=${encodeURIComponent(JSON.stringify(client_data_reflection_1))}&actual=${encodeURIComponent(JSON.stringify(client_data_reflection_2))}`
-    console.log({url})
-    if (!deepObjectCompare(client_data_reflection_1, client_data_reflection_2)){
-      alert("test failed")
-      console.log(`to see what is different between the 2 json objects follow ${url}`)
-      throw new Error("test failed")
-    } else {
-      alert("test passed")
-    }
-  })
-}
+
 
 const App: Component = () => {
   return (
     <div>
       {JSON.stringify(people)}
-      <button onClick={run_tests}>run_tests</button>
+      <div class="flex gap-1 border w-fit p-1 rounded-2xl items-center">
+<TestSVG/>
+      <button onClick={run_tests}> run tests</button>
+      </div>
       <ul>
         {Object.entries(people).map(([id, person]) => (
           <Person_c  props={person}/>
