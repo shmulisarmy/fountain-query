@@ -1,5 +1,6 @@
 import { createSignal, type Component } from 'solid-js';
 import { live_db } from './live_db';
+import { assert } from 'console';
 
 
 
@@ -17,13 +18,13 @@ type Person={
     }}
 }
 
-
+const backend_base_url = "localhost:8080"
 
 type Todo = Person['todo'][0]
 
 
-const people: {[key: string]: Person} = live_db("ws://localhost:8080/stream-data")
-
+const people: {[key: string]: Person} = live_db(`ws://${backend_base_url}/stream-data`);
+const ws = new WebSocket(`ws://${backend_base_url}/stream-data`)
 
 
 
@@ -52,10 +53,30 @@ export function Person_c({props}: {props:Person}){
   )
 }
 
+
+function run_tests(){
+ //integration tests
+    // The whole idea of this project is that the data is the same, regardless of the order
+    // in which things were updated or data was received in. Therefore, we check that here
+    // by having two different clients that are supposed to represent the same data. 
+    // although the first source is created (and starts receiving data before updates are triggered, it should have be the same as the second one
+  const client_data_reflection_1: {[key: string]: Person} = live_db(`ws://${backend_base_url}/stream-data`);
+  fetch(`${backend_base_url}/add-person?name=donkey`).then(function(){
+    const client_data_reflection_2: {[key: string]: Person} = live_db(`ws://${backend_base_url}/stream-data`);
+    if (JSON.stringify(client_data_reflection_1) === JSON.stringify(client_data_reflection_2)){
+      alert("test failed")
+      throw new Error("test failed")
+    } else {
+      alert("test passed")
+    }
+  })
+}
+
 const App: Component = () => {
   return (
     <div>
       {JSON.stringify(people)}
+      <button onClick={run_tests}>run_tests</button>
       <ul>
         {Object.entries(people).map(([id, person]) => (
           <Person_c  props={person}/>
