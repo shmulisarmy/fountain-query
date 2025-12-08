@@ -27,7 +27,6 @@ func AssertEq(a any, b any, msg ...string) {
 		msg = []string{"assertion failed"}
 	}
 	if a != b {
-		panic(fmt.Sprintf("%v != %v", a, b))
-		panic(msg[0])
+		panic(fmt.Sprintf("%v != %v: %s", a, b, msg[0]))
 	}
 }
