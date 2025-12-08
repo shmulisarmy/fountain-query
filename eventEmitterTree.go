@@ -10,15 +10,17 @@ const path_separator = "/"
 type SyncType string
 
 const (
-	SyncTypeUpdate = "update"
-	SyncTypeAdd    = "add"
-	SyncTypeRemove = "remove"
+	SyncTypeUpdate  = "update"
+	SyncTypeAdd     = "add"
+	SyncTypeRemove  = "remove"
+	LoadInitialData = "load"
 )
 
 type SyncMessage struct {
-	Type SyncType
-	Data string
-	Path string
+	Type      SyncType
+	Data      string
+	Path      string
+	Timestamp int64
 }
 
 type eventEmitterTree struct {

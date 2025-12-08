@@ -17,7 +17,9 @@ import (
 	"sql-compiler/utils"
 	. "sql-compiler/utils"
 	"strconv"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
@@ -319,7 +321,7 @@ func map_over(row_context state_full_byte_code.Row_context, selected_values_byte
 	return row
 }
 
-func select_byte_code_to_observable(select_byte_code byte_code.Select, parent_context option.Option[*state_full_byte_code.Row_context], row_schema rowType.RowSchema) pubsub.ObservableI {
+func select_byte_code_to_observable(select_byte_code byte_code.Select, parent_context option.Option[*state_full_byte_code.Row_context], row_schema rowType.RowSchema) *pubsub.Mapper {
 	var current_observable pubsub.ObservableI
 	if select_byte_code.Col_and_value_to_index_by.Col != "" {
 		//ints are cast to strings when placed and queried from indexes
@@ -348,7 +350,7 @@ func select_byte_code_to_observable(select_byte_code byte_code.Select, parent_co
 	})
 
 	current_observable.(*pubsub.Mapper).RowSchema = option.Some(row_schema)
-	return current_observable
+	return current_observable.(*pubsub.Mapper)
 
 }
 
@@ -415,22 +417,27 @@ func init() {
 	todos_table = tables.Get("todo")
 }
 
-func obsToClientDataSync(obs pubsub.ObservableI, ws *websocket.Conn) {
+func obsToClientDataSync(obs *pubsub.Mapper, ws *websocket.Conn) {
 	eventEmitterTree := eventEmitterTree{
 		on_message: func(message SyncMessage) {
+			message.Timestamp = time.Now().UnixNano() / int64(time.Millisecond)
 			ws.WriteJSON(message)
 		},
 	}
-	switch obs := obs.(type) {
-	case *pubsub.Mapper:
-		eventEmitterTree.syncFromObservable(obs, "")
-	default:
-		panic("should be mapper")
-	}
+	eventEmitterTree.syncFromObservable(obs, "")
+	eventEmitterTree.on_message(SyncMessage{Type: LoadInitialData, Data: pubsub.ObserverToJson(obs, obs.RowSchema.Expect("if this was a mapper that was made by compiling a select statement then it should have a row schema"))})
 }
 func main() {
 
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"*"},
+		AllowCredentials: true,
+		AllowWebSockets:  true,
+	}))
 
 	tables.Get("person").Index_on("age")
 
@@ -468,12 +475,7 @@ func main() {
 			display.DisplayStruct(message)
 		},
 	}
-	switch obs := obs.(type) {
-	case *pubsub.Mapper:
-		eventEmitterTree.syncFromObservable(obs, "")
-	default:
-		panic("should be mapper")
-	}
+	eventEmitterTree.syncFromObservable(obs, "")
 	r.GET("add-sample-data", func(ctx *gin.Context) {
 		add_sample_data()
 	})
@@ -483,7 +485,7 @@ func main() {
 
 }
 
-func query_to_observer(src string) pubsub.ObservableI {
+func query_to_observer(src string) *pubsub.Mapper {
 	l := NewLexer(src)
 	parser := parser{tokens: l.Tokenize()}
 	for _, t := range parser.tokens {

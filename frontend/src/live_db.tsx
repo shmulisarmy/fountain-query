@@ -1,7 +1,14 @@
-import { createMutable } from 'solid-js/store';
+import { createMutable,  } from 'solid-js/store';
+
+
+function reactive_mutable_set(obj: any, receiver: {}) {
+  for (const key of Object.keys(obj)) {
+    receiver[key as keyof typeof receiver ] = obj[key] as keyof typeof receiver;
+  }
+}
 
 type RemoteUpdate = {
-  Type: "add" | "remove" | "update";
+  Type: "add" | "remove" | "update" | "load";
   Data: any;
   Path: string;
   Source_name: string;
@@ -32,6 +39,9 @@ function syncMessagesInto(receiver: {}) {
         break;
       case "update":
         console.log("update", update.Data);
+        break;
+      case "load":
+        reactive_mutable_set(JSON.parse(update.Data), receiver);
         break;
       default:
         console.log("unknown type", update);
