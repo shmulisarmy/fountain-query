@@ -35,7 +35,13 @@ func (this *Filter) on_remove(row RowType) {
 }
 
 func (this *Filter) on_update(old_row RowType, new_row RowType) {
-	if this.predicate(new_row) {
+	old_passed := this.predicate(old_row)
+	new_passed := this.predicate(new_row)
+	if old_passed && !new_passed {
+		this.Publish_remove(old_row)
+	} else if !old_passed && new_passed {
+		this.Publish_Add(new_row)
+	} else if old_passed && new_passed {
 		this.Publish_Update(old_row, new_row)
 	}
 }
