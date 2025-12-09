@@ -8,11 +8,12 @@ import (
 	"sql-compiler/ast"
 	"sql-compiler/byte_code"
 	"sql-compiler/display"
+	. "sql-compiler/parser"
+	. "sql-compiler/parser/tokenizer"
 	pubsub "sql-compiler/pub_sub"
 	"sql-compiler/rowType"
 	. "sql-compiler/rowType"
 	"sql-compiler/state_full_byte_code"
-	. "sql-compiler/tokenizer"
 	option "sql-compiler/unwrap"
 	"sql-compiler/utils"
 	. "sql-compiler/utils"
@@ -487,11 +488,11 @@ func main() {
 
 func query_to_observer(src string) *pubsub.Mapper {
 	l := NewLexer(src)
-	parser := parser{tokens: l.Tokenize()}
-	for _, t := range parser.tokens {
+	parser := Parser{Tokens: l.Tokenize()}
+	for _, t := range parser.Tokens {
 		fmt.Printf("%-8s %q @%d\n", t.Type, t.Literal, t.Pos)
 	}
-	select_ := parser.parse_Select()
+	select_ := parser.Parse_Select()
 	select_.Recursively_link_children()
 	Recursively_set_selects_row_schema(&select_)
 	display.DisplayStruct(select_)
