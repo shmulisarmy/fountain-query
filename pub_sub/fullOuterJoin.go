@@ -189,12 +189,12 @@ func (this *FullOuterJoin) source_two_on_update(old_row rowType.RowType, new_row
 			second: &[]rowType.RowType{},
 		}
 	}
-	for i, row := range *this.values[col_value.(string)].first {
+	for i, row := range *this.values[col_value.(string)].second {
 		if !utils.CompareSlices(row, old_row) {
 			continue
 		}
 		for _, row1 := range *this.values[col_value.(string)].first {
-			this.Publish_Update(this.combine_rows(row, old_row), this.combine_rows(row1, new_row))
+			this.Publish_Update(this.combine_rows(row1, old_row), this.combine_rows(row1, new_row))
 		}
 		(*this.values[col_value.(string)].second) = append((*this.values[col_value.(string)].second)[:i], (*this.values[col_value.(string)].second)[i+1:]...)
 
