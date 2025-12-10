@@ -173,8 +173,8 @@ func (this *FullOuterJoin) source_one_on_update(old_row rowType.RowType, new_row
 		if !utils.CompareSlices(old_row, row) {
 			continue
 		}
-		for _, row1 := range *this.values[col_value.(string)].first {
-			this.Publish_Update(this.combine_rows(old_row, row), this.combine_rows(new_row, row1))
+		for _, row1 := range *this.values[col_value.(string)].second {
+			this.Publish_Update(this.combine_rows(old_row, row1), this.combine_rows(new_row, row1))
 		}
 		(*this.values[col_value.(string)].first) = append((*this.values[col_value.(string)].first)[:i], (*this.values[col_value.(string)].first)[i+1:]...)
 
