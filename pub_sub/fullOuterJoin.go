@@ -182,7 +182,7 @@ func (this *FullOuterJoin) source_one_on_update(old_row rowType.RowType, new_row
 }
 
 func (this *FullOuterJoin) source_two_on_update(old_row rowType.RowType, new_row rowType.RowType) {
-	col_value := old_row[this.source_one_on]
+	col_value := old_row[this.source_two_on]
 	if _, ok := this.values[col_value.(string)]; !ok {
 		this.values[col_value.(string)] = Tuple[*[]rowType.RowType]{
 			first:  &[]rowType.RowType{},
