@@ -133,3 +133,25 @@ func (this *FullOuterJoin) To_display(row_schema unwrap.Option[rowType.RowSchema
 	Link(this, p)
 	return p
 }
+
+//
+
+func (this *GroupBy) Filter_on(predicate func(rowType.RowType) bool) ObservableI {
+	f := &Filter{predicate: predicate}
+	Link(this, f)
+	return f
+}
+
+func (this *GroupBy) Map_on(transformer func(rowType.RowType) rowType.RowType) ObservableI {
+	m := &Mapper{transformer: transformer}
+	Link(this, m)
+	return m
+}
+
+func (this *GroupBy) To_display(row_schema unwrap.Option[rowType.RowSchema]) *Printer {
+	p := &Printer{
+		RowSchema: row_schema,
+	}
+	Link(this, p)
+	return p
+}
