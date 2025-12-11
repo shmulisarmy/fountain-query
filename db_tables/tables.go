@@ -102,9 +102,20 @@ func (this Table) Get_col_index(col_name string) int {
 	return -1
 }
 
-var Tables = tablesNewKeyValueArrayWith(30, NewTable("person", rowType.RowSchema{{"name", rowType.String}, {"email", rowType.String}, {"age", rowType.Int}, {"state", rowType.String}, {"id", rowType.Int}}),
-	NewTable("todo", []rowType.ColInfo{{"title", rowType.String}, {"description", rowType.String}, {"done", rowType.Bool}, {"person_id", rowType.Int}, {"is_public", rowType.Bool}}))
+var Tables = tablesNewKeyValueArrayWith(30, NewTable("person", rowType.RowSchema{{Name: "name", Type: rowType.String}, {Name: "email", Type: rowType.String}, {Name: "age", Type: rowType.Int}, {Name: "state", Type: rowType.String}, {Name: "id", Type: rowType.Int}, {Name: "profile_picture", Type: rowType.String}}),
+	NewTable("todo", []rowType.ColInfo{{Name: "title", Type: rowType.String}, {Name: "description", Type: rowType.String}, {Name: "done", Type: rowType.Bool}, {Name: "person_id", Type: rowType.Int}, {Name: "is_public", Type: rowType.Bool}, {Name: "id", Type: rowType.Int}}),
+	NewTable("tag", []rowType.ColInfo{{Name: "name", Type: rowType.String}, {Name: "id", Type: rowType.Int}}),
+	NewTable("todo_tag", []rowType.ColInfo{{Name: "todo_id", Type: rowType.Int}, {Name: "tag_id", Type: rowType.Int}}),
+)
 
+func init() {
+	Tables.Get("todo").Index_on("person_id")
+	Tables.Get("todo").Index_on("id")
+	Tables.Get("tag").Index_on("id")
+	Tables.Get("tag").Index_on("name")
+	Tables.Get("todo_tag").Index_on("todo_id")
+	Tables.Get("todo_tag").Index_on("tag_id")
+}
 func tablesNewKeyValueArrayWith(constant_cap int, initial_tables ...Table) *utils.CappedKeyValueArray[Table] {
 	keyValueArray := utils.NewKeyValueArray[Table](constant_cap)
 	for _, table := range initial_tables {

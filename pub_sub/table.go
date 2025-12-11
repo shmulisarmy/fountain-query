@@ -1,7 +1,9 @@
 package pubsub
 
 import (
+	"fmt"
 	"sql-compiler/compiler/rowType"
+	"sql-compiler/debugutil"
 	"sql-compiler/utils"
 )
 
@@ -53,17 +55,19 @@ func (this *R_Table) Add(row rowType.RowType) {
 
 // this is more for testing purposes because when integrating with the actual database (receiving and reacting to update events wel'e be updating by id)
 func (this *R_Table) Remove_where_eq(row_schema rowType.RowSchema, field string, value any) {
-	array_index := this.find_row_index(row_schema, field, value)
+	array_index := this.Find_row_index(row_schema, field, value)
+	debugutil.Print(array_index, "array_index")
 	if array_index == -1 {
-		panic("not found")
+		panic(fmt.Sprintf("not found %v %v %v", row_schema, field, value))
 	}
 	this.is_deleted[array_index] = true
+	debugutil.Print(this.Rows[array_index], "this.Rows[array_index]")
 	this.Publish_remove(this.Rows[array_index])
 }
 
 // this is more for testing purposes because when integrating with the actual database (receiving and reacting to update events wel'e be updating by id)
 func (this *R_Table) Update_where_eq(row_schema rowType.RowSchema, field string, value any, new_row rowType.RowType) {
-	array_index := this.find_row_index(row_schema, field, value)
+	array_index := this.Find_row_index(row_schema, field, value)
 	if array_index == -1 {
 		panic("not found")
 	}
@@ -72,7 +76,20 @@ func (this *R_Table) Update_where_eq(row_schema rowType.RowSchema, field string,
 	this.Publish_Update(old_row, new_row)
 }
 
-func (this *R_Table) find_row_index(row_schema rowType.RowSchema, field string, value any) int {
+func (this *R_Table) Update_field_where_eq(row_schema rowType.RowSchema, field string, value any, col_to_update_index int, new_value any) {
+	array_index := this.Find_row_index(row_schema, field, value)
+	if array_index == -1 {
+		panic("not found")
+	}
+	old_row := this.Rows[array_index]
+	new_row := make(rowType.RowType, len(old_row))
+	copy(new_row, old_row)
+	new_row[col_to_update_index] = new_value
+	this.Rows[array_index] = new_row
+	this.Publish_Update(old_row, new_row)
+}
+
+func (this *R_Table) Find_row_index(row_schema rowType.RowSchema, field string, value any) int {
 
 	// look through the rows using the indexes
 	for i := range this.Indexes {

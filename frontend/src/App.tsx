@@ -6,16 +6,10 @@ export type Person = {
   email: string
   age: number
   id: number
-  todo: { [key: string]: {
-    epic_title: string
-    author: string
-    id: number
-  }}
+  profile_picture?: string
 }
 
 export const backend_base_url = "localhost:8080"
-
-type Todo = Person['todo'][string]
 
 const people: { [key: string]: Person } = live_db_view(`ws://${backend_base_url}/stream-data`);
 
@@ -41,7 +35,7 @@ The backend's EventEmitterTree automatically tracks all changes to SQL query res
   },
   add: {
     title: "Add Operations",
-    content: `When you add a new person or todo, here's what happens:
+    content: `When you add a new person, here's what happens:
 
 1. **Frontend Request**: Your button click sends an HTTP request to the backend
 2. **Backend Processing**: The server inserts the new row into the database table
@@ -86,20 +80,17 @@ This means:
 3. **Query Re-evaluation**: SQL query automatically detects the change
 4. **Remove Message**: "remove" sync message broadcast to all connected clients
 5. **Path Removal**: Each client removes the person at their path (e.g., /person_123)
-6. **Cascading Update**: The nested todos subquery automatically re-evaluates
-7. **Nested Removal**: Todos belonging to that person are automatically removed from all clients
 
 **Real-Time Sync:**
 - All connected clients receive the same "remove" message simultaneously
 - The person disappears from all browser windows at the same time
-- Nested todos automatically disappear without separate delete operations
 - Late-connecting clients will never see the deleted person (they get the current state)`
   },
   load: {
     title: "Load Sample Data",
     content: `Loading sample data triggers multiple operations:
 
-1. **Bulk Insert**: Multiple persons and todos inserted into tables
+1. **Bulk Insert**: Multiple persons inserted into tables
 2. **Batch Processing**: All inserts processed together
 3. **Query Updates**: SQL query detects all new matching rows
 4. **Multiple Sync Messages**: Each new item generates an "add" message
@@ -113,68 +104,36 @@ Even if you connect two clients at different times:
 - The Load message ensures late-connecting clients get full snapshot
 - All subsequent sync messages apply identically`
   },
-  nested: {
-    title: "Nested Query Structure",
-    content: `The data structure reflects your nested SQL query:
+  };
 
-\`\`\`sql
-SELECT person.name, person.email, person.id, (
-  SELECT todo.title as epic_title, person.name as author, person.id 
-  FROM todo 
-  WHERE todo.person_id == person.id
-) as todos 
-FROM person 
-WHERE person.age >= 3
-\`\`\`
 
-**Path Structure:**
-- \`/person_1\` - Top-level person
-- \`/person_1/todo/todo_5\` - Nested todo under person_1
+function Person_c({ props, onDelete }: { props: Person; onDelete: (id: number) => void; }) {
+  const profilePicture = () => props.profile_picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${props.name}`;
 
-**How Sync Works for Nested Data:**
-- When a new todo is added, the sync message includes path: \`/person_1/todo/todo_5\`
-- Clients automatically create the intermediate structure
-- Each client maintains the same hierarchical tree
-- Updates to nested items use the full path for precision`
-  }
-};
-
-function Todo_c({ props }: { props: Todo }) {
-  return (
-    <li class='flex flex-col space-y-1 ml-4 p-2 bg-gray-50 rounded border border-gray-200'>
-      <p class="text-sm font-semibold text-gray-800">{props.epic_title}</p>
-      <p class="text-xs text-gray-600">Author: {props.author}</p>
-      <p class="text-xs text-gray-500">ID: {props.id}</p>
-    </li>
-  )
-}
-
-function Person_c({ props, onDelete }: { props: Person; onDelete: (id: number) => void }) {
   return (
     <div class='flex flex-col space-y-3 p-4 m-2 border-2 border-gray-300 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow min-h-32'>
-      <div class="flex justify-between items-start">
+      <div class="flex justify-between items-start gap-3">
+        <img
+          src={profilePicture()}
+          alt={`${props.name}'s profile`}
+          class="w-16 h-16 rounded-full border-2 border-gray-300"
+        />
         <div class="flex-1">
           <p class="text-xl font-bold text-gray-900">{props.name}</p>
           <p class="text-sm text-gray-600">{props.email}</p>
           <p class="text-xs text-gray-500">Age: {props.age} | ID: {props.id}</p>
         </div>
-        <button
-          onClick={() => onDelete(props.id)}
-          class="ml-4 px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-          title="Delete person"
-        >
-          🗑️ Delete
-        </button>
+        <div class="flex gap-2">
+          <button
+            onClick={() => onDelete(props.id)}
+            class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+            title="Delete person"
+          >
+            Delete
+          </button>
+        </div>
       </div>
-      <div>
-        <p class="text-sm font-semibold text-gray-700 mb-2">Todos ({Object.keys(props.todo || {}).length}):</p>
-        <ul class='space-y-1'>
-          <For each={Object.entries(props.todo || {})}>
-            {([id, todo]) => <Todo_c props={todo} />}
-          </For>
-        </ul>
-      </div>
-    </div>
+          </div>
   )
 }
 
@@ -183,12 +142,9 @@ const App: Component = () => {
   const [filterEmail, setFilterEmail] = createSignal("");
   const [activeDoc, setActiveDoc] = createSignal<keyof typeof DOCUMENTATION | null>(null);
   const [showAddPersonForm, setShowAddPersonForm] = createSignal(false);
-  const [showAddTodoForm, setShowAddTodoForm] = createSignal(false);
-  const [newPersonName, setNewPersonName] = createSignal("");
+    const [newPersonName, setNewPersonName] = createSignal("");
   const [newPersonEmail, setNewPersonEmail] = createSignal("");
-  const [newTodoTitle, setNewTodoTitle] = createSignal("");
-  const [newTodoDescription, setNewTodoDescription] = createSignal("");
-  const [newTodoPersonId, setNewTodoPersonId] = createSignal("");
+    const [notificationMessage, setNotificationMessage] = createSignal<string | null>(null);
 
   // Get filtered people
   const filteredPeople = () => {
@@ -213,29 +169,24 @@ const App: Component = () => {
     setActiveDoc("add");
   };
 
-  const handleAddTodo = async () => {
-    const title = newTodoTitle().trim();
-    const personId = parseInt(newTodoPersonId());
-    if (!title || isNaN(personId)) return;
-    
-    await fetch(`http://${backend_base_url}/add-todo?title=${encodeURIComponent(title)}&description=${encodeURIComponent(newTodoDescription())}&person_id=${personId}`);
-    setNewTodoTitle("");
-    setNewTodoDescription("");
-    setNewTodoPersonId("");
-    setShowAddTodoForm(false);
-    setActiveDoc("add");
-  };
+  
+  
+  
 
+  
   const handleLoadSampleData = async () => {
     await fetch(`http://${backend_base_url}/add-sample-data`);
     setActiveDoc("load");
   };
 
   const handleDeletePerson = async (personId: number) => {
-    if (!confirm(`Delete person with ID ${personId}? This will also remove all their todos from the view.`)) {
+    if (!confirm(`Delete person with ID ${personId}?`)) {
       return;
     }
     await fetch(`http://${backend_base_url}/delete-person?id=${personId}`);
+
+    setNotificationMessage(`🗑️ Person deleted! The frontend just made a request to delete the person. Because the data is subscribed through a query, the person automatically disappears in real-time across all connected clients. Open another tab to test the real-time sync!`);
+    setTimeout(() => setNotificationMessage(null), 10000);
     setActiveDoc("delete");
   };
 
@@ -253,6 +204,21 @@ const App: Component = () => {
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content Area */}
           <div class="lg:col-span-2 space-y-4">
+            {/* Notification Banner */}
+            <Show when={notificationMessage()}>
+              <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg shadow-md">
+                <div class="flex justify-between items-start">
+                  <p class="text-sm text-blue-900">{notificationMessage()}</p>
+                  <button
+                    onClick={() => setNotificationMessage(null)}
+                    class="text-blue-700 hover:text-blue-900 ml-4"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </Show>
+
             {/* Action Buttons */}
             <div class="bg-white rounded-lg shadow p-4">
               <h2 class="text-xl font-semibold mb-4 text-gray-800">Actions</h2>
@@ -262,12 +228,6 @@ const App: Component = () => {
                   class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium"
                 >
                   ➕ Add Person
-                </button>
-                <button
-                  onClick={() => { setShowAddTodoForm(true); setActiveDoc("add"); }}
-                  class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors font-medium"
-                >
-                  📝 Add Todo
                 </button>
                 <button
                   onClick={handleLoadSampleData}
@@ -322,53 +282,7 @@ const App: Component = () => {
                 </div>
               </Show>
 
-              {/* Add Todo Form */}
-              <Show when={showAddTodoForm()}>
-                <div class="mt-4 p-4 bg-blue-50 rounded border border-blue-200">
-                  <h3 class="font-semibold mb-2">Add New Todo</h3>
-                  <div class="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Todo Title"
-                      value={newTodoTitle()}
-                      onInput={(e) => setNewTodoTitle(e.currentTarget.value)}
-                      class="w-full px-3 py-2 border rounded"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Description (optional)"
-                      value={newTodoDescription()}
-                      onInput={(e) => setNewTodoDescription(e.currentTarget.value)}
-                      class="w-full px-3 py-2 border rounded"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Person ID"
-                      value={newTodoPersonId()}
-                      onInput={(e) => setNewTodoPersonId(e.currentTarget.value)}
-                      class="w-full px-3 py-2 border rounded"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()}
-                    />
-                    <div class="flex gap-2">
-                      <button
-                        onClick={handleAddTodo}
-                        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                      >
-                        Add
-                      </button>
-                      <button
-                        onClick={() => { setShowAddTodoForm(false); setNewTodoTitle(""); setNewTodoDescription(""); setNewTodoPersonId(""); }}
-                        class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </Show>
-            </div>
+                          </div>
 
             {/* Filters */}
             <div class="bg-white rounded-lg shadow p-4">
@@ -408,7 +322,7 @@ const App: Component = () => {
               >
                 <div class="grid grid-cols-1 gap-4">
                   <For each={filteredPeople()}>
-                    {([id, person]) => <Person_c props={person} onDelete={handleDeletePerson} />}
+                    {([_, person]) => <Person_c props={person} onDelete={handleDeletePerson} />}
                   </For>
                 </div>
               </Show>
@@ -434,12 +348,15 @@ const App: Component = () => {
                 when={activeDoc()}
                 fallback={
                   <div class="text-gray-600 text-sm space-y-3">
-                    <p class="font-medium">Interact with the buttons to see how real-time sync works!</p>
+                    <p class="font-medium">🚀 Experience Real-Time Sync!</p>
+                    <div class="p-3 bg-yellow-50 border border-yellow-200 rounded">
+                      <p class="font-semibold text-yellow-800">🧪 Try This Now:</p>
+                      <p class="text-yellow-700 text-xs mt-1">Open this page in another tab or browser window, then make changes in one tab and watch them instantly appear in both!</p>
+                    </div>
                     <ul class="list-disc list-inside space-y-2 ml-2">
-                      <li>Click <strong>Add Person</strong> or <strong>Add Todo</strong> to see sync in action</li>
+                                            <li>Click delete buttons to see real-time removal across tabs</li>
                       <li>Use <strong>Filters</strong> to understand client-side vs server-side filtering</li>
                       <li>Click <strong>Load Sample Data</strong> to see batch updates</li>
-                      <li>Open multiple browser windows to see multi-client sync</li>
                     </ul>
                     <button
                       onClick={() => setActiveDoc("overview")}
@@ -466,13 +383,7 @@ const App: Component = () => {
                       >
                         Overview
                       </button>
-                      <button
-                        onClick={() => setActiveDoc("nested")}
-                        class="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
-                      >
-                        Nested Queries
-                      </button>
-                    </div>
+                                          </div>
                   </div>
                 </div>
               </Show>

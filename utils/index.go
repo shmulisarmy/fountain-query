@@ -11,8 +11,13 @@ func String_or_num_to_string(value any) string {
 		return value
 	case int:
 		return fmt.Sprintf("%d", value)
+	case bool:
+		if value {
+			return "true"
+		}
+		return "false"
 	default:
-		panic("only string and int are supported")
+		panic(fmt.Sprintf("only string and int are supported and not %T", value))
 	}
 }
 func Capitalize(s string) string {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sql-compiler/assert"
 	. "sql-compiler/compiler/rowType"
+	"sql-compiler/utils"
 	"strings"
 )
 
@@ -35,7 +36,7 @@ func ObserverToJson(col ObservableI, row_schema RowSchema) string {
 	res := "{"
 	has_at_least_one := false
 	for row := range col.Pull {
-		primary_key := row[0].(string)
+		primary_key := utils.String_or_num_to_string(row[0])
 		res += "\"" + primary_key + "\":"
 		res += RowTypeToJson(&row, row_schema) + ","
 		has_at_least_one = true

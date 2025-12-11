@@ -2,6 +2,7 @@ package pubsub
 
 import (
 	"sql-compiler/compiler/rowType"
+	"sql-compiler/debugutil"
 	"sql-compiler/unwrap"
 )
 
@@ -14,6 +15,7 @@ func (this *Observable) Add_sub(subscriber Subscriber) {
 }
 
 func (this *Observable) Publish_Add(row rowType.RowType) {
+	debugutil.Print(len(this.Subscribers), "len(this.Subscribers)")
 	for _, subscriber := range this.Subscribers {
 
 		subscriber.on_Add(row)
@@ -21,6 +23,7 @@ func (this *Observable) Publish_Add(row rowType.RowType) {
 }
 
 func (this *Observable) Publish_remove(row rowType.RowType) {
+	debugutil.Print(len(this.Subscribers), "len(this.Subscribers)")
 	for _, subscriber := range this.Subscribers {
 		subscriber.on_remove(row)
 	}

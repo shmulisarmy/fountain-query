@@ -1,6 +1,9 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
+	"log"
 	"net/http"
 	"sql-compiler/compiler/rowType"
 	compiler_runtime "sql-compiler/compiler/runtime"
@@ -8,6 +11,7 @@ import (
 	"sql-compiler/display"
 	event_emitter_tree "sql-compiler/eventEmitterTree"
 	pubsub "sql-compiler/pub_sub"
+	"strings"
 
 	"strconv"
 	"time"
@@ -17,11 +21,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var todos_table *db_tables.Table
-
-func init() {
-	todos_table = db_tables.Tables.Get("todo")
-}
+//go:embed all:frontend/dist
+var frontendFS embed.FS
 
 func obsToClientDataSync(obs pubsub.ObservableI, ws *websocket.Conn) {
 	eventEmitterTree := event_emitter_tree.EventEmitterTree{
@@ -36,13 +37,9 @@ func obsToClientDataSync(obs pubsub.ObservableI, ws *websocket.Conn) {
 
 func add_sample_data() {
 	tables := db_tables.Tables
-	tables.Get("person").Insert(rowType.RowType{"shmuli", "email@gmail.com", 22, "state", tables.Get("person").Next_row_id()})
-	tables.Get("person").Insert(rowType.RowType{"ajay", "email@gmail.com", 22, "state", tables.Get("person").Next_row_id()})
-	tables.Get("person").Insert(rowType.RowType{"the-doo-er", "email@gmail.com", 20, "state", tables.Get("person").Next_row_id()})
-	todos_table.Insert(rowType.RowType{"eat food", "make sure its clean", false, 1, false})
-	todos_table.Insert(rowType.RowType{"play music", "make sure its clean", false, 1, true})
-	todos_table.Insert(rowType.RowType{"clean", "make sure its clean", true, 1, false})
-	todos_table.Insert(rowType.RowType{"do art", "make sure its clean", false, 2, true})
+	tables.Get("person").Insert(rowType.RowType{"teddy", "teddyemail@gmail.com", 22, "state", tables.Get("person").Next_row_id(), "https://api.dicebear.com/7.x/avataaars/svg?seed=teddy"})
+	tables.Get("person").Insert(rowType.RowType{"ajay", "ajayemail@gmail.com", 22, "state", tables.Get("person").Next_row_id(), "https://api.dicebear.com/7.x/avataaars/svg?seed=ajay"})
+	tables.Get("person").Insert(rowType.RowType{"the-doo-er", "the-doo-eremail@gmail.com", 20, "state", tables.Get("person").Next_row_id(), "https://api.dicebear.com/7.x/avataaars/svg?seed=the-doo-er"})
 }
 
 func main() {
@@ -60,11 +57,7 @@ func main() {
 
 	db_tables.Tables.Get("person").Index_on("age")
 
-	db_tables.Tables.Get("todo").Index_on("person_id")
-
-	src := `SELECT person.name, person.email, person.age, person.id, (
-		SELECT todo.title as epic_title, person.name as author, person.id FROM todo WHERE todo.person_id == person.id
-		) as todos FROM person WHERE person.age >= 3  `
+	src := `SELECT person.name, person.email, person.age, person.id, person.profile_picture FROM person WHERE person.age >= 3 `
 
 	obs := compiler_runtime.Query_to_observer(src)
 
@@ -81,15 +74,12 @@ func main() {
 	})
 
 	r.GET("add-person", func(ctx *gin.Context) {
-		db_tables.Tables.Get("person").Insert(rowType.RowType{ctx.Query("name"), ctx.Query("email"), 25, "state", db_tables.Tables.Get("person").Next_row_id()})
-	})
-	r.GET("add-todo", func(ctx *gin.Context) {
-		person_id, err := strconv.Atoi(ctx.Query("person_id"))
-		if err != nil {
-			panic(err)
+		name := ctx.Query("name")
+		profile_picture := ctx.Query("profile_picture")
+		if profile_picture == "" {
+			profile_picture = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + name
 		}
-
-		db_tables.Tables.Get("todo").Insert(rowType.RowType{ctx.Query("title"), ctx.Query("description"), false, person_id, true})
+		db_tables.Tables.Get("person").Insert(rowType.RowType{name, ctx.Query("email"), 25, "state", db_tables.Tables.Get("person").Next_row_id(), profile_picture})
 	})
 	r.GET("delete-person", func(ctx *gin.Context) {
 		person_id, err := strconv.Atoi(ctx.Query("id"))
@@ -100,21 +90,6 @@ func main() {
 		row_schema := rowType.RowSchema(person_table.Columns)
 		person_table.R_Table.Remove_where_eq(row_schema, "id", person_id)
 	})
-	r.GET("delete-todo", func(ctx *gin.Context) {
-		// Delete todo by title and person_id combination (since todos don't have unique IDs)
-		title := ctx.Query("title")
-		_, err := strconv.Atoi(ctx.Query("person_id"))
-		if err != nil || title == "" {
-			panic("title and person_id required")
-		}
-		todo_table := db_tables.Tables.Get("todo")
-		row_schema := rowType.RowSchema(todo_table.Columns)
-		// Find and delete todos matching title and person_id
-		// Since Remove_where_eq only supports one field, we'll iterate
-		// For a proper implementation, this would need a composite key delete
-		// For now, we'll use title as the identifier (assuming unique titles per person)
-		todo_table.R_Table.Remove_where_eq(row_schema, "title", title)
-	})
 	eventEmitterTree := event_emitter_tree.EventEmitterTree{
 		On_message: func(message event_emitter_tree.SyncMessage) {
 			display.DisplayStruct(message)
@@ -124,8 +99,33 @@ func main() {
 	r.GET("add-sample-data", func(ctx *gin.Context) {
 		add_sample_data()
 	})
+
+	frontendDist, err := fs.Sub(frontendFS, "frontend/dist")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fileServer := http.FileServer(http.FS(frontendDist))
+	r.Use(func(c *gin.Context) {
+		path := c.Request.URL.Path
+
+		if strings.HasPrefix(path, "/stream-data") || strings.HasPrefix(path, "/add-person") || strings.HasPrefix(path, "/delete-person") || strings.HasPrefix(path, "/add-sample-data") {
+			c.Next()
+			return
+		}
+
+		filePath := strings.TrimPrefix(path, "/")
+		_, err := frontendDist.Open(filePath)
+
+		if err != nil {
+			c.FileFromFS("index.html", http.FS(frontendDist))
+			return
+		}
+
+		fileServer.ServeHTTP(c.Writer, c.Request)
+	})
+
 	r.Run(":8080")
 
 	// os.Exit(0)
-
 }
