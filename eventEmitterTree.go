@@ -38,7 +38,7 @@ type eventEmitterTree struct {
 	on_message func(SyncMessage)
 }
 
-func (receiver *eventEmitterTree) syncFromObservable(obs *pubsub.Mapper, path string) {
+func (receiver *eventEmitterTree) syncFromObservable(obs pubsub.ObservableI, path string) {
 	obs.Add_sub(&pubsub.CustomSubscriber{
 		OnAddFunc: func(item rowType.RowType) {
 			primary_key := item[0].(string)
@@ -59,6 +59,29 @@ func (receiver *eventEmitterTree) syncFromObservable(obs *pubsub.Mapper, path st
 	}
 
 }
+func (receiver *eventEmitterTree) syncFromGroupByWithPathing(obs *pubsub.GroupBy, path string) {
+	obs.Add_sub(&pubsub.CustomSubscriber{
+		OnAddFunc: func(item rowType.RowType) {
+
+			primary_key := item[0].(string)
+			receiver.on_message(SyncMessage{Type: SyncTypeAdd, Data: pubsub.RowTypeToJson(&item, obs.GetRowSchema()), Path: path + path_separator + obs.Get_rows_group_value(&item) + primary_key})
+			receiver.syncFromObservable_row(item, path+path_separator+primary_key, obs.GetRowSchema())
+		},
+		OnRemoveFunc: func(item rowType.RowType) {
+			primary_key := item[0].(string)
+			receiver.on_message(SyncMessage{Type: SyncTypeRemove, Data: pubsub.RowTypeToJson(&item, obs.GetRowSchema()), Path: path + path_separator + obs.Get_rows_group_value(&item) + primary_key})
+		},
+		OnUpdateFunc: func(oldItem, newItem rowType.RowType) {
+			panic("todo: work on this method")
+			primary_key := oldItem[0].(string)
+			receiver.on_message(SyncMessage{Type: SyncTypeUpdate, Data: pubsub.RowTypeToJson(&newItem, obs.GetRowSchema()), Path: path + path_separator + obs.Get_rows_group_value(&oldItem) + primary_key})
+		},
+	})
+	for row := range obs.Pull {
+		receiver.syncFromObservable_row(row, path+obs.Get_rows_group_value(&row), obs.GetRowSchema())
+	}
+
+}
 
 func (receiver *eventEmitterTree) syncFromObservable_row(row rowType.RowType, path string, row_schema rowType.RowSchema) {
 	for i, col := range row {
@@ -68,6 +91,8 @@ func (receiver *eventEmitterTree) syncFromObservable_row(row rowType.RowType, pa
 			switch col := col.(type) {
 			case *pubsub.Mapper:
 				receiver.syncFromObservable(col, path+path_separator+row_schema[i].Name)
+			case *pubsub.GroupBy:
+				receiver.syncFromGroupByWithPathing(col, path+path_separator+row_schema[i].Name)
 			default:
 				panic("should be mapper")
 			}

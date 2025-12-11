@@ -25,6 +25,12 @@ func (this *R_Table) To_display(row_schema unwrap.Option[rowType.RowSchema]) *Pr
 	return p
 }
 
+func (this *R_Table) GroupBy_on(col_index int) ObservableI {
+	g := &GroupBy{index_of_col_to_group_by: col_index}
+	Link(this, g)
+	return g
+}
+
 // ///
 func (this *Mapper) Filter_on(predicate func(rowType.RowType) bool) ObservableI {
 	f := &Filter{predicate: predicate}
@@ -44,6 +50,12 @@ func (this *Mapper) To_display(row_schema unwrap.Option[rowType.RowSchema]) *Pri
 	}
 	Link(this, p)
 	return p
+}
+
+func (this *Mapper) GroupBy_on(col_index int) ObservableI {
+	g := &GroupBy{index_of_col_to_group_by: col_index}
+	Link(this, g)
+	return g
 }
 
 /////
@@ -68,6 +80,12 @@ func (this *Filter) To_display(row_schema unwrap.Option[rowType.RowSchema]) *Pri
 	return p
 }
 
+func (this *Filter) GroupBy_on(col_index int) ObservableI {
+	g := &GroupBy{index_of_col_to_group_by: col_index}
+	Link(this, g)
+	return g
+}
+
 ////
 
 func (this *Channel) Filter_on(predicate func(rowType.RowType) bool) ObservableI {
@@ -88,6 +106,12 @@ func (this *Channel) To_display(row_schema unwrap.Option[rowType.RowSchema]) *Pr
 	}
 	Link(this, p)
 	return p
+}
+
+func (this *Channel) GroupBy_on(col_index int) ObservableI {
+	g := &GroupBy{index_of_col_to_group_by: col_index}
+	Link(this, g)
+	return g
 }
 
 ///
@@ -112,6 +136,12 @@ func (this *CustomSubscriber) To_display(row_schema unwrap.Option[rowType.RowSch
 	return p
 }
 
+func (this *CustomSubscriber) GroupBy_on(col_index int) ObservableI {
+	g := &GroupBy{index_of_col_to_group_by: col_index}
+	Link(this, g)
+	return g
+}
+
 ///
 
 func (this *FullOuterJoin) Filter_on(predicate func(rowType.RowType) bool) ObservableI {
@@ -132,4 +162,38 @@ func (this *FullOuterJoin) To_display(row_schema unwrap.Option[rowType.RowSchema
 	}
 	Link(this, p)
 	return p
+}
+
+func (this *FullOuterJoin) GroupBy_on(col_index int) ObservableI {
+	g := &GroupBy{index_of_col_to_group_by: col_index}
+	Link(this, g)
+	return g
+}
+
+//
+
+func (this *GroupBy) Filter_on(predicate func(rowType.RowType) bool) ObservableI {
+	f := &Filter{predicate: predicate}
+	Link(this, f)
+	return f
+}
+
+func (this *GroupBy) Map_on(transformer func(rowType.RowType) rowType.RowType) ObservableI {
+	m := &Mapper{transformer: transformer}
+	Link(this, m)
+	return m
+}
+
+func (this *GroupBy) To_display(row_schema unwrap.Option[rowType.RowSchema]) *Printer {
+	p := &Printer{
+		RowSchema: row_schema,
+	}
+	Link(this, p)
+	return p
+}
+
+func (this *GroupBy) GroupBy_on(col_index int) ObservableI {
+	g := &GroupBy{index_of_col_to_group_by: col_index}
+	Link(this, g)
+	return g
 }

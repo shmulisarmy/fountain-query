@@ -1,6 +1,18 @@
 # Fountain Query
 When you make a sql query, you'll have a live view into the database with that query, our sql engine when done will be able to handle nested queries, joins and many other query capabilities that are present in sql
 
+## Client SDKs
+
+The project includes multiple client SDKs for consuming live query results in different environments:
+
+- **Go SDK** (`live_db_sdks/go/`) - Thread-safe client with `map[string]any` for Go applications
+- **Solid.js SDK** (`live_db_sdks/solid/`) - Fine-grained reactive updates using `createMutable`
+- **React SDK** (`live_db_sdks/react/`) - Hooks and class-based APIs with immutable state updates
+
+All SDKs connect via WebSocket and automatically sync with the backend's `eventEmitterTree`, maintaining hierarchical data structures that mirror your SQL queries with nested subqueries.
+
+See [`live_db_sdks/README.md`](live_db_sdks/README.md) for detailed documentation and usage examples.
+
 ## Trying to learn but don't where to start?
 look no further than the pub_sub directory as thats where we build the core primitive components that when assembled create a great programming world of emerging behaviors.
 
