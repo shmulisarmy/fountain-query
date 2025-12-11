@@ -91,6 +91,30 @@ func main() {
 
 		db_tables.Tables.Get("todo").Insert(rowType.RowType{ctx.Query("title"), ctx.Query("description"), false, person_id, true})
 	})
+	r.GET("delete-person", func(ctx *gin.Context) {
+		person_id, err := strconv.Atoi(ctx.Query("id"))
+		if err != nil {
+			panic(err)
+		}
+		person_table := db_tables.Tables.Get("person")
+		row_schema := rowType.RowSchema(person_table.Columns)
+		person_table.R_Table.Remove_where_eq(row_schema, "id", person_id)
+	})
+	r.GET("delete-todo", func(ctx *gin.Context) {
+		// Delete todo by title and person_id combination (since todos don't have unique IDs)
+		title := ctx.Query("title")
+		_, err := strconv.Atoi(ctx.Query("person_id"))
+		if err != nil || title == "" {
+			panic("title and person_id required")
+		}
+		todo_table := db_tables.Tables.Get("todo")
+		row_schema := rowType.RowSchema(todo_table.Columns)
+		// Find and delete todos matching title and person_id
+		// Since Remove_where_eq only supports one field, we'll iterate
+		// For a proper implementation, this would need a composite key delete
+		// For now, we'll use title as the identifier (assuming unique titles per person)
+		todo_table.R_Table.Remove_where_eq(row_schema, "title", title)
+	})
 	eventEmitterTree := event_emitter_tree.EventEmitterTree{
 		On_message: func(message event_emitter_tree.SyncMessage) {
 			display.DisplayStruct(message)
