@@ -87,8 +87,7 @@ func main() {
 			panic(err)
 		}
 		person_table := db_tables.Tables.Get("person")
-		row_schema := rowType.RowSchema(person_table.Columns)
-		person_table.R_Table.Remove_where_eq(row_schema, "id", person_id)
+		person_table.R_Table.Remove_where_eq("id", person_id)
 	})
 	eventEmitterTree := event_emitter_tree.EventEmitterTree{
 		On_message: func(message event_emitter_tree.SyncMessage) {

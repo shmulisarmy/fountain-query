@@ -12,7 +12,7 @@ type R_Table struct {
 	Rows       []rowType.RowType
 	is_deleted []bool //use index to find out if the row at that index is deleted
 	Indexes    []Index
-	rowSchema  []rowType.ColInfo
+	rowSchema  rowType.RowSchema
 }
 
 func New_R_Table(row_schema rowType.RowSchema) R_Table {
@@ -54,11 +54,11 @@ func (this *R_Table) Add(row rowType.RowType) {
 }
 
 // this is more for testing purposes because when integrating with the actual database (receiving and reacting to update events wel'e be updating by id)
-func (this *R_Table) Remove_where_eq(row_schema rowType.RowSchema, field string, value any) {
-	array_index := this.Find_row_index(row_schema, field, value)
+func (this *R_Table) Remove_where_eq(field string, value any) {
+	array_index := this.Find_row_index(field, value)
 	debugutil.Print(array_index, "array_index")
 	if array_index == -1 {
-		panic(fmt.Sprintf("not found %v %v %v", row_schema, field, value))
+		panic(fmt.Sprintf("not found %v %v %v", this.rowSchema, field, value))
 	}
 	this.is_deleted[array_index] = true
 	debugutil.Print(this.Rows[array_index], "this.Rows[array_index]")
@@ -66,8 +66,8 @@ func (this *R_Table) Remove_where_eq(row_schema rowType.RowSchema, field string,
 }
 
 // this is more for testing purposes because when integrating with the actual database (receiving and reacting to update events wel'e be updating by id)
-func (this *R_Table) Update_where_eq(row_schema rowType.RowSchema, field string, value any, new_row rowType.RowType) {
-	array_index := this.Find_row_index(row_schema, field, value)
+func (this *R_Table) Update_where_eq(field string, value any, new_row rowType.RowType) {
+	array_index := this.Find_row_index(field, value)
 	if array_index == -1 {
 		panic("not found")
 	}
@@ -76,8 +76,8 @@ func (this *R_Table) Update_where_eq(row_schema rowType.RowSchema, field string,
 	this.Publish_Update(old_row, new_row)
 }
 
-func (this *R_Table) Update_field_where_eq(row_schema rowType.RowSchema, field string, value any, col_to_update_index int, new_value any) {
-	array_index := this.Find_row_index(row_schema, field, value)
+func (this *R_Table) Update_field_where_eq(field string, value any, col_to_update_index int, new_value any) {
+	array_index := this.Find_row_index(field, value)
 	if array_index == -1 {
 		panic("not found")
 	}
@@ -89,11 +89,11 @@ func (this *R_Table) Update_field_where_eq(row_schema rowType.RowSchema, field s
 	this.Publish_Update(old_row, new_row)
 }
 
-func (this *R_Table) Find_row_index(row_schema rowType.RowSchema, field string, value any) int {
+func (this *R_Table) Find_row_index(field string, value any) int {
 
 	// look through the rows using the indexes
 	for i := range this.Indexes {
-		if this.Indexes[i].Col_indexing_on == row_schema.Find_field_index(field) {
+		if this.Indexes[i].Col_indexing_on == this.rowSchema.Find_field_index(field) {
 			if channel, ok := this.Indexes[i].Channels[utils.String_or_num_to_string(value)]; ok {
 				// assert.AssertEq(len(channel.row_indexes), 1)
 				return channel.row_indexes[0]
@@ -105,7 +105,7 @@ func (this *R_Table) Find_row_index(row_schema rowType.RowSchema, field string, 
 	// look through the rows manually
 	for i := range this.Rows {
 		if !this.is_deleted[i] {
-			if this.Rows[i][row_schema.Find_field_index(field)] == value {
+			if this.Rows[i][this.rowSchema.Find_field_index(field)] == value {
 				return i
 			}
 		}
