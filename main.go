@@ -8,9 +8,9 @@ import (
 	"sql-compiler/display"
 	event_emitter_tree "sql-compiler/eventEmitterTree"
 	pubsub "sql-compiler/pub_sub"
+	"time"
 
 	"strconv"
-	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -23,12 +23,11 @@ import (
 func obsToClientDataSync(obs pubsub.ObservableI, ws *websocket.Conn) {
 	eventEmitterTree := event_emitter_tree.EventEmitterTree{
 		On_message: func(message event_emitter_tree.SyncMessage) {
-			message.Timestamp = time.Now().UnixNano() / int64(time.Millisecond)
 			ws.WriteJSON(message)
 		},
 	}
 	eventEmitterTree.SyncFromObservable(obs, "")
-	eventEmitterTree.On_message(event_emitter_tree.SyncMessage{Type: event_emitter_tree.LoadInitialData, Data: pubsub.ObserverToJson(obs, obs.GetRowSchema())})
+	eventEmitterTree.On_message(event_emitter_tree.SyncMessage{Type: event_emitter_tree.LoadInitialData, Data: pubsub.ObserverToJson(obs, obs.GetRowSchema()), Timestamp: time.Now().UnixNano() / int64(time.Millisecond)})
 }
 
 func add_sample_data() {

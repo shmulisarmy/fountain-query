@@ -15,6 +15,7 @@ import (
 	"sql-compiler/compiler/rowType"
 	pubsub "sql-compiler/pub_sub"
 	"sql-compiler/utils"
+	"time"
 )
 
 const path_separator = "/"
@@ -47,16 +48,16 @@ func (receiver *EventEmitterTree) SyncFromObservable(obs pubsub.ObservableI, pat
 	obs.Add_sub(&pubsub.CustomSubscriber{
 		OnAddFunc: func(item rowType.RowType) {
 			primary_key := utils.String_or_num_to_string(item[0])
-			receiver.On_message(SyncMessage{Type: SyncTypeAdd, Data: pubsub.RowTypeToJson(&item, obs.GetRowSchema()), Path: path + path_separator + primary_key})
+			receiver.On_message(SyncMessage{Type: SyncTypeAdd, Data: pubsub.RowTypeToJson(&item, obs.GetRowSchema()), Path: path + path_separator + primary_key, Timestamp: time.Now().UnixNano() / int64(time.Millisecond)})
 			receiver.syncFromObservable_row(item, path+path_separator+primary_key, obs.GetRowSchema())
 		},
 		OnRemoveFunc: func(item rowType.RowType) {
 			primary_key := utils.String_or_num_to_string(item[0])
-			receiver.On_message(SyncMessage{Type: SyncTypeRemove, Data: pubsub.RowTypeToJson(&item, obs.GetRowSchema()), Path: path + path_separator + primary_key})
+			receiver.On_message(SyncMessage{Type: SyncTypeRemove, Data: pubsub.RowTypeToJson(&item, obs.GetRowSchema()), Path: path + path_separator + primary_key, Timestamp: time.Now().UnixNano() / int64(time.Millisecond)})
 		},
 		OnUpdateFunc: func(oldItem, newItem rowType.RowType) {
 			primary_key := oldItem[0].(string)
-			receiver.On_message(SyncMessage{Type: SyncTypeUpdate, Data: pubsub.RowTypeToJson(&newItem, obs.GetRowSchema()), Path: path + path_separator + primary_key})
+			receiver.On_message(SyncMessage{Type: SyncTypeUpdate, Data: pubsub.RowTypeToJson(&newItem, obs.GetRowSchema()), Path: path + path_separator + primary_key, Timestamp: time.Now().UnixNano() / int64(time.Millisecond)})
 		},
 	})
 	for row := range obs.Pull {
@@ -71,19 +72,19 @@ func (receiver *EventEmitterTree) SyncFromGroupByWithPathing(obs *pubsub.GroupBy
 		OnAddFunc: func(item rowType.RowType) {
 			primary_key := utils.String_or_num_to_string(item[0])
 			item_path := path + path_separator + obs.Get_rows_group_value(&item) + path_separator + primary_key
-			receiver.On_message(SyncMessage{Type: SyncTypeAdd, Data: pubsub.RowTypeToJson(&item, obs.GetRowSchema()), Path: item_path})
+			receiver.On_message(SyncMessage{Type: SyncTypeAdd, Data: pubsub.RowTypeToJson(&item, obs.GetRowSchema()), Path: item_path, Timestamp: time.Now().UnixNano() / int64(time.Millisecond)})
 			receiver.syncFromObservable_row(item, item_path, obs.GetRowSchema())
 		},
 		OnRemoveFunc: func(item rowType.RowType) {
 			primary_key := utils.String_or_num_to_string(item[0])
 			item_path := path + path_separator + obs.Get_rows_group_value(&item) + path_separator + primary_key
-			receiver.On_message(SyncMessage{Type: SyncTypeRemove, Data: pubsub.RowTypeToJson(&item, obs.GetRowSchema()), Path: item_path})
+			receiver.On_message(SyncMessage{Type: SyncTypeRemove, Data: pubsub.RowTypeToJson(&item, obs.GetRowSchema()), Path: item_path, Timestamp: time.Now().UnixNano() / int64(time.Millisecond)})
 		},
 		OnUpdateFunc: func(oldItem, newItem rowType.RowType) {
 			panic("todo: still working on this method")
 			primary_key := utils.String_or_num_to_string(oldItem[0])
 			item_path := path + path_separator + obs.Get_rows_group_value(&oldItem) + path_separator + primary_key
-			receiver.On_message(SyncMessage{Type: SyncTypeUpdate, Data: pubsub.RowTypeToJson(&newItem, obs.GetRowSchema()), Path: item_path})
+			receiver.On_message(SyncMessage{Type: SyncTypeUpdate, Data: pubsub.RowTypeToJson(&newItem, obs.GetRowSchema()), Path: item_path, Timestamp: time.Now().UnixNano() / int64(time.Millisecond)})
 		},
 	})
 	for row := range obs.Pull {
