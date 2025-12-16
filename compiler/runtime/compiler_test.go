@@ -18,8 +18,8 @@ func TestObservedLists(t *testing.T) {
 	src := `SELECT person.name, person.email, person.id FROM person `
 	people := db_tables.Tables.Get("person")
 	id := len(people.R_Table.Rows)
-	people.Insert(rowType.RowType{"example-name", "example-email", 23, "state", id})
-	people.Insert(rowType.RowType{"example-name-2", "example-email-2", 23, "state-2", id})
+	people.Insert(rowType.RowType{"example-name", "example-email", 23, "state", id, "profile.png"})
+	people.Insert(rowType.RowType{"example-name-2", "example-email-2", 23, "state-2", id, "profile.png"})
 
 	obs := Query_to_observer(src)
 

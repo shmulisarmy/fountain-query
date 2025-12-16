@@ -17,9 +17,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//go:embed all:frontend/dist
-// var frontendFS embed.FS
-
 func obsToClientDataSync(obs pubsub.ObservableI, ws *websocket.Conn) {
 	eventEmitterTree := event_emitter_tree.EventEmitterTree{
 		On_message: func(message event_emitter_tree.SyncMessage) {

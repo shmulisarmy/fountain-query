@@ -31,11 +31,11 @@ func TestGroupBy(t *testing.T) {
 		},
 	}
 	event_emitter.SyncFromObservable(obs, "")
-	db_tables.Tables.Get("person").Insert(rowType.RowType{"shmuli", "email@gmail.com", 22, "state", db_tables.Tables.Get("person").Next_row_id()})
-	db_tables.Tables.Get("person").Insert(rowType.RowType{"ajay", "ajay@gmail.com", 30, "state", db_tables.Tables.Get("person").Next_row_id()})
-	db_tables.Tables.Get("person").Insert(rowType.RowType{"natalie", "natalie@gmail.com", 22, "state", db_tables.Tables.Get("person").Next_row_id()})
-	db_tables.Tables.Get("person").Insert(rowType.RowType{"ellen", "ellen@gmail.com", 30, "state", db_tables.Tables.Get("person").Next_row_id()})
-	db_tables.Tables.Get("person").Insert(rowType.RowType{"fred", "fred@gmail.com", 44, "state", db_tables.Tables.Get("person").Next_row_id()})
+	db_tables.Tables.Get("person").Insert(rowType.RowType{"shmuli", "email@gmail.com", 22, "state", db_tables.Tables.Get("person").Next_row_id(), "profile.png"})
+	db_tables.Tables.Get("person").Insert(rowType.RowType{"ajay", "ajay@gmail.com", 30, "state", db_tables.Tables.Get("person").Next_row_id(), "profile.png"})
+	db_tables.Tables.Get("person").Insert(rowType.RowType{"natalie", "natalie@gmail.com", 22, "state", db_tables.Tables.Get("person").Next_row_id(), "profile.png"})
+	db_tables.Tables.Get("person").Insert(rowType.RowType{"ellen", "ellen@gmail.com", 30, "state", db_tables.Tables.Get("person").Next_row_id(), "profile.png"})
+	db_tables.Tables.Get("person").Insert(rowType.RowType{"fred", "fred@gmail.com", 44, "state", db_tables.Tables.Get("person").Next_row_id(), "profile.png"})
 	// Check that the top-level age groups exist in the local_live_db after inserts
 
 	_, has22 := live_db.Data["22"]
