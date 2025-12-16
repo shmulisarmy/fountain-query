@@ -30,6 +30,7 @@ func TestThat_Table_To_Json_Is_Valid_Json_with_property_testing(t *testing.T) {
 
 	parameters := gopter.DefaultTestParameters()
 	properties := gopter.NewProperties(parameters)
+	parameters.MinSuccessfulTests = 1000
 	properties.Property("TestProperties", prop.ForAll(func(rows []rowType.RowType) bool {
 
 		row_schema := rowType.RowSchema{
@@ -69,18 +70,20 @@ func TestThat_Table_To_Json_Is_Valid_Json_with_property_testing(t *testing.T) {
 		var parsed_json map[string]map[string]any
 		err := json.Unmarshal([]byte(json_string), &parsed_json)
 		if err != nil {
-			// t.Fatal(err)
+			t.Log(json_string)
+			t.Fatal(err)
+			println(err)
 			return false
 		}
 
-		if parsed_json == nil {
-			// t.Fail()
-			t.Log(json_string)
-			return false
-		}
+		// if parsed_json == nil {
+		// 	// t.Fail()
+		// 	t.Log(json_string)
+		// 	return false
+		// }
 
 		return true
-	}, gen.SliceOf(GenTodoRow())))
+	}, gen.SliceOfN(20, GenTodoRow())))
 
 	if !properties.Run(gopter.ConsoleReporter(true)) {
 		t.Fail()
