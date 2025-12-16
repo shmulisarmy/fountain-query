@@ -95,7 +95,7 @@ func TestAddAndRemove(t *testing.T) {
 
 	{ //the remove should cancel out the add
 		todo_table.Add(rowType.RowType{"clean garage", false, 1})
-		todo_table.Remove_where_eq(row_schema, "title", "clean garage")
+		todo_table.Remove_where_eq("title", "clean garage")
 	}
 
 	json_string = pubsub.ObserverToJson(&todo_table, row_schema)
@@ -146,8 +146,8 @@ func TestDoubleUpdateCancelOut(t *testing.T) {
 	}
 
 	{ //at the end of these 2 updates the data should be as it was previously
-		todo_table.Update_where_eq(row_schema, "title", "clean the other room", rowType.RowType{"clean the other room", false, 1})
-		todo_table.Update_where_eq(row_schema, "title", "clean the other room", rowType.RowType{"clean the other room", true, 1})
+		todo_table.Update_where_eq("title", "clean the other room", rowType.RowType{"clean the other room", false, 1})
+		todo_table.Update_where_eq("title", "clean the other room", rowType.RowType{"clean the other room", true, 1})
 	}
 
 	json_string = pubsub.ObserverToJson(&todo_table, row_schema)
