@@ -15,7 +15,10 @@ func RowTypeToJson(row *RowType, row_schema RowSchema) string {
 		res += "\"" + row_schema[i].Name + "\":"
 		switch row_schema[i].Type {
 		case String:
-			safe, _ := json.Marshal(col.(string))
+			safe, err := json.Marshal(col.(string))
+			if err != nil {
+				panic(fmt.Sprintf("failed to marshal string: %v", err))
+			}
 			res += fmt.Sprintf("%s", string(safe))
 		case Int:
 			res += fmt.Sprintf("%d", col.(int))
