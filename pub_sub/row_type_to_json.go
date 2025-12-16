@@ -41,7 +41,10 @@ func ObserverToJson(col ObservableI, row_schema RowSchema) string {
 	has_at_least_one := false
 	for row := range col.Pull {
 		primary_key := utils.String_or_num_to_string(row[0])
-		safe, _ := json.Marshal(primary_key)
+		safe, err := json.Marshal(primary_key)
+		if err != nil {
+			panic(fmt.Sprintf("failed to marshal primary key: %v", err))
+		}
 		res += string(safe) + ":"
 		res += RowTypeToJson(&row, row_schema) + ","
 		has_at_least_one = true
