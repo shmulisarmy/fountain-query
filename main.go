@@ -50,7 +50,7 @@ func main() {
 
 	db_tables.Tables.Get("person").Index_on("age")
 
-	src := `SELECT person.name, person.email, person.age, person.id, person.profile_picture FROM person WHERE person.age >= 3 `
+	src := `SELECT person.name, person.email, person.age, person.id, person.profile_picture, (select title, name from todo where todo.person_id == id) as todos FROM person WHERE person.age >= 3 `
 
 	obs := compiler_runtime.Query_to_observer(src)
 
