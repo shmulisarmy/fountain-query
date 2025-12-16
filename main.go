@@ -5,6 +5,7 @@ import (
 	"sql-compiler/compiler/rowType"
 	compiler_runtime "sql-compiler/compiler/runtime"
 	"sql-compiler/db_tables"
+	"sql-compiler/debugutil"
 	"sql-compiler/display"
 	event_emitter_tree "sql-compiler/eventEmitterTree"
 	pubsub "sql-compiler/pub_sub"
@@ -72,6 +73,13 @@ func main() {
 			profile_picture = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + name
 		}
 		db_tables.Tables.Get("person").Insert(rowType.RowType{name, ctx.Query("email"), 25, "state", db_tables.Tables.Get("person").Next_row_id(), profile_picture})
+	})
+	r.GET("update-person-name", func(ctx *gin.Context) {
+		old_name := ctx.Query("old_name")
+		new_name := ctx.Query("new_name")
+		debugutil.Print(old_name, "old_name")
+		debugutil.Print(new_name, "new_name")
+		db_tables.Tables.Get("person").R_Table.Update_field_where_eq("name", old_name, 0, new_name)
 	})
 	r.GET("delete-person", func(ctx *gin.Context) {
 		person_id, err := strconv.Atoi(ctx.Query("id"))
