@@ -41,8 +41,12 @@ type EventEmitterTree struct {
 }
 
 func (receiver *EventEmitterTree) SyncFromObservable(obs pubsub.ObservableI, path string) {
-	if gb, ok := obs.(*pubsub.GroupBy); ok {
+	switch gb := obs.(type) {
+	case *pubsub.GroupBy:
 		receiver.SyncFromGroupByWithPathing(gb, path)
+		return
+	case *pubsub.SumBroadCaster:
+		receiver.SyncFromBroadcaster(gb, path)
 		return
 	}
 	obs.Add_sub(&pubsub.CustomSubscriber{
@@ -63,6 +67,21 @@ func (receiver *EventEmitterTree) SyncFromObservable(obs pubsub.ObservableI, pat
 	for row := range obs.Pull {
 		receiver.syncFromObservable_row(row, path, obs.GetRowSchema())
 	}
+
+}
+
+func (receiver *EventEmitterTree) SyncFromBroadcaster(obs *pubsub.SumBroadCaster, path string) {
+	obs.Add_sub(&pubsub.CustomSubscriber{
+		OnAddFunc: func(item rowType.RowType) {
+			receiver.On_message(SyncMessage{Type: SyncTypeAdd, Data: utils.String_or_num_to_string(obs.Current_sum), Path: path, Timestamp: time.Now().UnixNano() / int64(time.Millisecond)})
+		},
+		OnRemoveFunc: func(item rowType.RowType) {
+			receiver.On_message(SyncMessage{Type: SyncTypeRemove, Data: utils.String_or_num_to_string(obs.Current_sum), Path: path, Timestamp: time.Now().UnixNano() / int64(time.Millisecond)})
+		},
+		OnUpdateFunc: func(oldItem, newItem rowType.RowType) {
+			receiver.On_message(SyncMessage{Type: SyncTypeUpdate, Data: utils.String_or_num_to_string(obs.Current_sum), Path: path, Timestamp: time.Now().UnixNano() / int64(time.Millisecond)})
+		},
+	})
 
 }
 
@@ -87,8 +106,8 @@ func (receiver *EventEmitterTree) SyncFromGroupByWithPathing(obs *pubsub.GroupBy
 			receiver.On_message(SyncMessage{Type: SyncTypeUpdate, Data: pubsub.RowTypeToJson(&newItem, obs.GetRowSchema()), Path: item_path, Timestamp: time.Now().UnixNano() / int64(time.Millisecond)})
 		},
 	})
-	for row := range obs.Pull {
 
+	for row := range obs.Pull {
 		receiver.syncFromObservable_row(row, path+path_separator+obs.Get_rows_group_value(&row), obs.GetRowSchema())
 	}
 
@@ -104,6 +123,8 @@ func (receiver *EventEmitterTree) syncFromObservable_row(row rowType.RowType, pa
 				receiver.SyncFromObservable(col, path+path_separator+row_schema[i].Name)
 			case *pubsub.GroupBy:
 				receiver.SyncFromGroupByWithPathing(col, path+path_separator+row_schema[i].Name)
+			case *pubsub.SumBroadCaster:
+				receiver.SyncFromBroadcaster(col, path+path_separator+row_schema[i].Name)
 			default:
 				panic("should be mapper")
 			}

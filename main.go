@@ -9,6 +9,7 @@ import (
 	"sql-compiler/display"
 	event_emitter_tree "sql-compiler/eventEmitterTree"
 	pubsub "sql-compiler/pub_sub"
+	"sql-compiler/utils"
 	"time"
 
 	"strconv"
@@ -50,7 +51,7 @@ func main() {
 
 	db_tables.Tables.Get("person").Index_on("age")
 
-	src := `SELECT person.name, person.email, person.age, person.id, person.profile_picture, (select title, name from todo where todo.person_id == id) as todos FROM person WHERE person.age >= 3 `
+	src := `SELECT person.name, person.email, person.age, person.id, person.profile_picture, (select title, name from todo where todo.person_id == todo.id) as todos FROM person `
 
 	obs := compiler_runtime.Query_to_observer(src)
 
@@ -67,6 +68,7 @@ func main() {
 	})
 
 	r.GET("add-person", func(ctx *gin.Context) {
+		println("add-person called")
 		name := ctx.Query("name")
 		profile_picture := ctx.Query("profile_picture")
 		if profile_picture == "" {
@@ -88,6 +90,27 @@ func main() {
 		}
 		person_table := db_tables.Tables.Get("person")
 		person_table.R_Table.Remove_where_eq("id", person_id)
+	})
+	r.GET("add-todo", func(ctx *gin.Context) {
+		title := ctx.Query("title")
+		description := ctx.Query("description")
+		is_done := ctx.Query("done") == "true"
+		is_public := ctx.Query("public") == "true"
+		person_id := utils.ParseInt(ctx.Query("person_id"))
+		db_tables.Tables.Get("todo").Insert(rowType.RowType{title, description, is_done, person_id, is_public, db_tables.Tables.Get("todo").Next_row_id()})
+	})
+
+	r.GET("watch-query", func(ctx *gin.Context) {
+		ws, err := (&websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool { return true },
+		}).Upgrade(ctx.Writer, ctx.Request, nil)
+		if err != nil {
+			panic(err)
+		}
+		query := ctx.Query("query") + " "
+		debugutil.Print(query, "query")
+		obs := compiler_runtime.Query_to_observer(query)
+		obsToClientDataSync(obs, ws)
 	})
 	eventEmitterTree := event_emitter_tree.EventEmitterTree{
 		On_message: func(message event_emitter_tree.SyncMessage) {

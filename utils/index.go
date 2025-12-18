@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -19,6 +20,14 @@ func String_or_num_to_string(value any) string {
 	default:
 		panic(fmt.Sprintf("only string and int are supported and not %T", value))
 	}
+}
+
+func ParseInt(value string) int {
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		panic(err)
+	}
+	return i
 }
 func Capitalize(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]

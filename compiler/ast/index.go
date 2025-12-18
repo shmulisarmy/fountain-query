@@ -34,6 +34,11 @@ type Selected_value struct {
 	Alias           string
 }
 
+type Aggregate_col struct {
+	Name string
+	Col  Col
+}
+
 type Select struct {
 	Table           string
 	Wheres          []Where

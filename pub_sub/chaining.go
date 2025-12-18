@@ -197,3 +197,31 @@ func (this *GroupBy) GroupBy_on(col_index int) ObservableI {
 	Link(this, g)
 	return g
 }
+
+//
+
+func (this *SumBroadCaster) Filter_on(predicate func(rowType.RowType) bool) ObservableI {
+	f := &Filter{predicate: predicate}
+	Link(this, f)
+	return f
+}
+
+func (this *SumBroadCaster) Map_on(transformer func(rowType.RowType) rowType.RowType) ObservableI {
+	m := &Mapper{transformer: transformer}
+	Link(this, m)
+	return m
+}
+
+func (this *SumBroadCaster) To_display(row_schema unwrap.Option[rowType.RowSchema]) *Printer {
+	p := &Printer{
+		RowSchema: row_schema,
+	}
+	Link(this, p)
+	return p
+}
+
+func (this *SumBroadCaster) GroupBy_on(col_index int) ObservableI {
+	g := &SumBroadCaster{}
+	Link(this, g)
+	return g
+}
