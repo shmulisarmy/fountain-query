@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"sql-compiler/assert"
 	"sql-compiler/compiler/ast"
 	. "sql-compiler/compiler/parser/tokenizer"
@@ -141,7 +142,7 @@ func get_Runtime_value_relative_location_and_type(select_ *ast.Select, col ast.C
 
 Try_parent:
 	if select_.Parent_select.IsNone() {
-		panic("col " + col_name + " not found in select " + select_.Table)
+		panic(fmt.Sprintf("col '%s' not found in select '%s'", col_name, select_.Table))
 	}
 	location_info, type_ := get_Runtime_value_relative_location_and_type(select_.Parent_select.Unwrap(), col)
 	return location_info.Add_one(), type_

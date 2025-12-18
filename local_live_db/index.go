@@ -9,7 +9,7 @@ import (
 )
 
 type LocalLiveDB struct {
-	Data map[string]any
+	Data any
 }
 
 func (db *LocalLiveDB) HandleUpdate(update eventEmitterTree.SyncMessage) error {
@@ -31,24 +31,31 @@ func (db *LocalLiveDB) HandleUpdate(update eventEmitterTree.SyncMessage) error {
 func (db *LocalLiveDB) handleAdd(update eventEmitterTree.SyncMessage) error {
 	var data any
 	if err := json.Unmarshal([]byte(update.Data), &data); err != nil {
+		panic(fmt.Errorf("failed to unmarshal add data: %w", err))
 		return fmt.Errorf("failed to unmarshal add data: %w", err)
 	}
 
 	parts := strings.Split(update.Path, "/")
+	if len(parts) == 0 {
+		db.Data = data
+	}
 	parts = parts[1:] // Remove empty first element from leading /
 
 	if len(parts) == 0 {
-		return fmt.Errorf("empty path")
+		db.Data = update.Data
+		return nil
 	}
 
 	current := db.Data
 	for i := 0; i < len(parts)-1; i++ {
 		key := parts[i]
 
-		next, exists := current[key]
+		current_map := (current).(map[string]any)
+
+		next, exists := current_map[key]
 		if !exists {
 			newMap := make(map[string]any)
-			current[key] = newMap
+			current_map[key] = newMap
 			current = newMap
 			continue
 		}
@@ -61,7 +68,7 @@ func (db *LocalLiveDB) handleAdd(update eventEmitterTree.SyncMessage) error {
 	}
 
 	lastKey := parts[len(parts)-1]
-	current[lastKey] = data
+	current.(map[string]any)[lastKey] = data
 
 	return nil
 }
@@ -78,7 +85,7 @@ func (db *LocalLiveDB) handleRemove(update eventEmitterTree.SyncMessage) error {
 	for i := 0; i < len(parts)-1; i++ {
 		key := parts[i]
 
-		next, exists := current[key]
+		next, exists := current.(map[string]any)[key]
 		if !exists {
 			return nil // Path doesn't exist, nothing to remove
 		}
@@ -91,7 +98,7 @@ func (db *LocalLiveDB) handleRemove(update eventEmitterTree.SyncMessage) error {
 	}
 
 	lastKey := parts[len(parts)-1]
-	delete(current, lastKey)
+	delete(current.(map[string]any), lastKey)
 
 	return nil
 }
@@ -113,7 +120,7 @@ func (db *LocalLiveDB) handleUpdateData(update eventEmitterTree.SyncMessage) err
 	for i := 0; i < len(parts)-1; i++ {
 		key := parts[i]
 
-		next, exists := current[key]
+		next, exists := current.(map[string]any)[key]
 		if !exists {
 			return fmt.Errorf("path does not exist for update: %s", update.Path)
 		}
@@ -126,7 +133,7 @@ func (db *LocalLiveDB) handleUpdateData(update eventEmitterTree.SyncMessage) err
 	}
 
 	lastKey := parts[len(parts)-1]
-	current[lastKey] = data
+	current.(map[string]any)[lastKey] = data
 
 	return nil
 }

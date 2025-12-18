@@ -38,12 +38,12 @@ func TestGroupBy(t *testing.T) {
 	db_tables.Tables.Get("person").Insert(rowType.RowType{"fred", "fred@gmail.com", 44, "state", db_tables.Tables.Get("person").Next_row_id(), "profile.png"})
 	// Check that the top-level age groups exist in the local_live_db after inserts
 
-	_, has22 := live_db.Data["22"]
-	_, has30 := live_db.Data["30"]
-	_, has44 := live_db.Data["44"]
+	_, has22 := live_db.Data.(map[string]any)["22"]
+	_, has30 := live_db.Data.(map[string]any)["30"]
+	_, has44 := live_db.Data.(map[string]any)["44"]
 	assert.TAssert(t, has22, "expected key 22 to exist")
 	assert.TAssert(t, has30, "expected key 30 to exist")
 	assert.TAssert(t, has44, "expected key 44 to exist")
 
-	display.DisplayStruct(live_db.Data)
+	display.DisplayStruct(live_db.Data.(map[string]any))
 }

@@ -36,7 +36,30 @@ func RowTypeToJson(row *RowType, row_schema RowSchema) string {
 	return res
 }
 
+func GroupByToJson(col GroupBy, row_schema RowSchema) string {
+	groups := map[string]map[string]string{}
+	for row := range col.Pull {
+		groupValue := col.Get_rows_group_value(&row)
+		if _, ok := groups[groupValue]; !ok {
+			groups[groupValue] = map[string]string{}
+		}
+		groups[groupValue][utils.String_or_num_to_string(row[0])] = RowTypeToJson(&row, row_schema)
+	}
+	jsonBytes, err := json.Marshal(groups)
+	if err != nil {
+		panic(err)
+	}
+	a, err := utils.EncodeNestedJSON(string(jsonBytes))
+	if err != nil {
+		panic(err)
+	}
+	println("a: ", a)
+	return a
+}
 func ObserverToJson(col ObservableI, row_schema RowSchema) string {
+	if col, ok := col.(*GroupBy); ok {
+		return GroupByToJson(*col, row_schema)
+	}
 	res := "{"
 	has_at_least_one := false
 	for row := range col.Pull {

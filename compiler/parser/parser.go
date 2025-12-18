@@ -50,12 +50,11 @@ func (p *Parser) inrange() bool {
 	return p.pos < len(p.Tokens)
 }
 func (p *Parser) parse_col_or_expr_lit() any {
+
 	walk_back_pos := p.pos
 	token := p.Tokens[p.pos]
 	p.pos += 1
-	if token.Type == STRING {
-		return token.Literal
-	}
+
 	if token.Type == TRUE || token.Type == FALSE {
 		return token.Type == TRUE
 	}
@@ -65,6 +64,15 @@ func (p *Parser) parse_col_or_expr_lit() any {
 			panic(err)
 		}
 		return n
+	}
+	if token.Type == STRING {
+		return token.Literal
+	}
+	if p.optionallyExpect(LPAREN) {
+		// v := ast.Aggregate_col{Name: token.Literal, Col: p.parseCol()}
+		v := p.parseCol()
+		p.expect(RPAREN)
+		return v
 	}
 	p.pos = walk_back_pos
 	return p.parseCol()

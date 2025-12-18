@@ -139,6 +139,7 @@ func select_byte_code_to_observable(select_byte_code byte_code.Select, parent_co
 	}).Map_on(func(row rowType.RowType) rowType.RowType {
 		return map_over(state_full_byte_code.Row_context{Row: row, Parent_context: parent_context}, select_byte_code.Selected_values_byte_code, row_schema)
 	})
+
 	current_observable.(*pubsub.Mapper).RowSchema = option.Some(row_schema)
 	if select_byte_code.Group_by_col_index.IsSome() {
 		current_observable = current_observable.GroupBy_on(select_byte_code.Group_by_col_index.Unwrap())
