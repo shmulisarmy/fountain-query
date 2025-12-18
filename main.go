@@ -51,7 +51,7 @@ func main() {
 
 	db_tables.Tables.Get("person").Index_on("age")
 
-	src := `SELECT person.name, person.email, person.age, person.id, person.profile_picture, (select title, name from todo where todo.person_id == todo.id) as todos FROM person `
+	src := `SELECT person.name, person.email, person.age, person.id, person.profile_picture, (select title, name, id from todo where todo.person_id == person.id) as todos FROM person `
 
 	obs := compiler_runtime.Query_to_observer(src)
 
@@ -99,6 +99,14 @@ func main() {
 		person_id := utils.ParseInt(ctx.Query("person_id"))
 		db_tables.Tables.Get("todo").Insert(rowType.RowType{title, description, is_done, person_id, is_public, db_tables.Tables.Get("todo").Next_row_id()})
 	})
+	r.GET("delete-todo", func(ctx *gin.Context) {
+		todo_id, err := strconv.Atoi(ctx.Query("todo_id"))
+		if err != nil {
+			panic(err)
+		}
+		todo_table := db_tables.Tables.Get("todo")
+		todo_table.R_Table.Remove_where_eq("id", todo_id)
+	})
 
 	r.GET("watch-query", func(ctx *gin.Context) {
 		ws, err := (&websocket.Upgrader{
@@ -110,6 +118,11 @@ func main() {
 		query := ctx.Query("query") + " "
 		debugutil.Print(query, "query")
 		obs := compiler_runtime.Query_to_observer(query)
+		(&event_emitter_tree.EventEmitterTree{
+			On_message: func(message event_emitter_tree.SyncMessage) {
+				display.DisplayStruct(message)
+			},
+		}).SyncFromObservable(obs, "")
 		obsToClientDataSync(obs, ws)
 	})
 	eventEmitterTree := event_emitter_tree.EventEmitterTree{

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -43,4 +44,13 @@ func CompareSlices[T comparable](a, b []T) bool {
 		}
 	}
 	return true
+}
+
+func EncodeNestedJSON(data interface{}) (string, error) {
+	// Marshal the data once - json.Marshal handles all escaping automatically
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+	return string(jsonBytes[1 : len(jsonBytes)-1]), nil
 }
